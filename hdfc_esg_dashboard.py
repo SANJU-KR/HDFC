@@ -1,6 +1,6 @@
 """
 ╔═══════════════════════════════════════════════════════════════════════════════╗
-║  HDFC Bank: Green Finance & ESG Investment Tracker  v4.2                     ║
+║  HDFC Bank: Green Finance & ESG Investment Tracker  v4.3                     ║
 ║  RUN:  pip install streamlit plotly pandas numpy requests                     ║
 ║        streamlit run hdfc_esg_dashboard.py                                    ║
 ║  CSV files must be in the SAME folder as this script                          ║
@@ -64,17 +64,24 @@ div[data-testid="stSidebar"] .stButton>button{
 div[data-testid="stSidebar"] .stButton>button:hover{
   background:rgba(32,196,138,.11)!important;border-color:var(--green)!important;
   color:var(--green)!important;transform:translateX(3px)!important;}
-/* KPI cards */
-.kpi-card{background:var(--surf);border:1px solid var(--bord);border-radius:13px;
-  padding:16px 18px 12px;position:relative;overflow:hidden;transition:transform .18s,box-shadow .18s;}
+
+/* KPI CARDS - UPDATED FOR UNIFORM SIZING */
+.kpi-card{
+  background:var(--surf); border:1px solid var(--bord); border-radius:13px;
+  padding:16px 18px 12px; position:relative; overflow:hidden;
+  transition:transform .18s,box-shadow .18s;
+  min-height: 125px; /* Ensures uniform height */
+  display: flex; flex-direction: column; justify-content: space-between;
+}
 .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
   background:linear-gradient(90deg,var(--green),transparent);}
 .kpi-card:hover{transform:translateY(-2px);box-shadow:0 6px 28px rgba(32,196,138,.1);}
-.kpi-icon{font-size:1.2rem;margin-bottom:7px;}
-.kpi-val{font-family:'Space Grotesk',sans-serif;font-size:1.6rem;font-weight:700;
-  color:var(--green);line-height:1;margin:0 0 4px;}
-.kpi-label{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.kpi-icon{font-size:1.2rem;margin-bottom:4px;}
+.kpi-val{font-family:'Space Grotesk',sans-serif;font-size:1.55rem;font-weight:700;
+  color:var(--green);line-height:1.1;margin:0 0 4px;}
+.kpi-label{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;flex-grow:1;}
 .kpi-delta{font-size:.72rem;color:#69F0AE;margin-top:4px;}
+
 /* page header */
 .pg-header{background:linear-gradient(135deg,#0C1E38,#091425 60%,#061812);
   border:1px solid var(--bord);border-radius:16px;padding:22px 28px 16px;margin-bottom:22px;display:flex;align-items:center;gap:14px;}
@@ -85,20 +92,12 @@ div[data-testid="stSidebar"] .stButton>button:hover{
 .sec-title{font-family:'Space Grotesk',sans-serif;font-size:.93rem;font-weight:600;
   color:var(--green);display:flex;align-items:center;gap:8px;
   border-bottom:1px solid var(--bord);padding-bottom:7px;margin:22px 0 11px;}
-/* ribbon */
-.ribbon{background:var(--surf2);border:1px solid var(--bord);border-radius:11px;
-  padding:11px 16px;display:flex;gap:0;margin-bottom:18px;}
-.rib-item{flex:1;text-align:center;border-right:1px solid var(--bord);padding:0 8px;}
-.rib-item:last-child{border-right:none;}
-.rib-val{font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--green);font-size:.98rem;}
-.rib-lbl{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:2px;}
 /* insight */
 .insight{background:linear-gradient(135deg,rgba(32,196,138,.06),rgba(32,196,138,.01));
   border:1px solid rgba(32,196,138,.18);border-left:3px solid var(--green);
   border-radius:9px;padding:13px 16px;font-size:.82rem;color:var(--muted);margin-top:12px;line-height:1.65;}
 .insight b{color:var(--green);}
 .flt-head{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.9px;margin-bottom:4px;margin-top:10px;}
-/* UI Fixes: Removed header{visibility:hidden;} to keep sidebar toggle visible */
 #MainMenu,footer{visibility:hidden;}
 header{background:transparent!important;}
 [data-testid="stDecoration"]{display:none;}
@@ -243,7 +242,7 @@ with st.sidebar:
         sel_risk = st.selectbox("", ["All Risk Tiers","Low","Medium","High"], label_visibility="collapsed", key="sb_risk")
 
         st.markdown("---")
-        st.caption(f"📊 v4.2  ·  {len(master):,} records")
+        st.caption(f"📊 v4.3  ·  {len(master):,} records")
 
 if not DATA_OK:
     st.error(f"❌ CSV not found: {ERR_MSG}")
@@ -298,11 +297,6 @@ if st.session_state.page == "overview":
         ("🏗️",f"{npr:,}","Active Projects","All sectors"),("📍",f"{nst}","States Covered","Pan-India Reach"),
     ]):
         with col: st.markdown(kpi(ic,vl,lb,dl), unsafe_allow_html=True)
-
-    bsec = df.groupby("Sector")["Investment_Amount_USD"].sum().idxmax() if len(df)>0 else "—"
-    breg = df.groupby("Region")["Investment_Amount_USD"].sum().idxmax() if len(df)>0 else "—"
-    brs = df.groupby("Sector")["ROI_Percentage"].mean().idxmax() if len(df)>0 else "—"
-    lrp = round(len(df[df["Risk_Category"]=="Low"])/max(len(df),1)*100,1)
 
     st.markdown('<div class="sec-title">📊 Investment Trends &amp; Sector Mix</div>', unsafe_allow_html=True)
     a1,a2 = st.columns([3,2])
@@ -547,24 +541,33 @@ elif st.session_state.page == "roi":
         st.plotly_chart(f2, use_container_width=True)
 
 # ════════════════════════════════════════════════════════════════════════════════
-#  P6 — SECTOR DEEP DIVE
+#  P6 — SECTOR DEEP DIVE (UPDATED TO USE SIDEBAR FILTER)
 # ════════════════════════════════════════════════════════════════════════════════
 elif st.session_state.page == "sector":
     st.markdown("""<div class="pg-header"><div class="pg-icon">🔍</div><div><div class="pg-title">Sector Deep Dive</div><div class="pg-sub">Granular per-sector analysis — investment, ESG, carbon &amp; returns</div></div></div>""", unsafe_allow_html=True)
+    filter_badge()
 
-    dp1,dp2 = st.columns(2)
-    with dp1:
-        chosen = st.selectbox("🏭 Select Sector", sorted(df["Sector"].dropna().unique().tolist()), key="sd_sector")
-    with dp2:
-        chosen_state = st.selectbox("📍 Filter by State", ["All States"] + sorted(df["State"].dropna().unique().tolist()), key="sd_state")
+    # Smart Defaulting: If user selected "All Sectors" in sidebar, show top invested sector by default
+    if sel_sector == "All Sectors":
+        if len(df) > 0:
+            chosen = df.groupby("Sector")["Investment_Amount_USD"].sum().idxmax()
+            st.info(f"💡 Showing deep dive for **{chosen}** (Top invested sector). Use the global sidebar filter to select a specific sector.")
+        else:
+            chosen = None
+    else:
+        chosen = sel_sector
 
-    sd = df[df["Sector"]==chosen]
-    if chosen_state != "All States": sd = sd[sd["State"]==chosen_state]
+    # Using the globally filtered df (which already considers dates, states, etc.)
+    sd = df[df["Sector"] == chosen] if chosen else df
 
-    si2, sc2, sr2, se2, sp2 = sd["Investment_Amount_USD"].sum()/1e9, sd["CO2_Reduction_Tons"].sum()/1e6, sd["ROI_Percentage"].mean(), sd["ESG_Score"].mean(), sd["Project_ID"].nunique()
+    if len(sd) > 0:
+        si2, sc2, sr2, se2, sp2 = sd["Investment_Amount_USD"].sum()/1e9, sd["CO2_Reduction_Tons"].sum()/1e6, sd["ROI_Percentage"].mean(), sd["ESG_Score"].mean(), sd["Project_ID"].nunique()
+    else:
+        si2 = sc2 = sr2 = se2 = sp2 = 0
 
-    dr=sector_df[sector_df["Sector"]==chosen]["Description"].values
-    if len(dr): st.info(f"📋 **{chosen}**: {dr[0]}")
+    if chosen:
+        dr = sector_df[sector_df["Sector"]==chosen]["Description"].values
+        if len(dr): st.info(f"📋 **{chosen}**: {dr[0]}")
 
     c1,c2,c3,c4,c5 = st.columns(5)
     for col,(ic,vl,lb) in zip([c1,c2,c3,c4,c5],[("💵",f"${si2:.2f}B","Investment"),("🌍",f"{sc2:.2f}M T","CO₂ Reduced"),("📈",f"{sr2:.2f}%","Avg ROI"),("🌿",f"{se2:.1f}","Avg ESG Score"),("🏗️",f"{sp2:,}","Projects")]):
@@ -577,7 +580,7 @@ elif st.session_state.page == "sector":
         fc=make_subplots(specs=[[{"secondary_y":True}]])
         fc.add_trace(go.Bar(x=yd["Year"],y=yd["Investment"],name="Investment", marker_color=GRN,opacity=0.8),secondary_y=False)
         fc.add_trace(go.Scatter(x=yd["Year"],y=yd["ROI"],name="ROI %", mode="lines+markers",line=dict(color=GOLD,width=2.8)), secondary_y=True)
-        combo_lay(fc,f"📈 {chosen}: Investment &amp; ROI — Dual Axis",340)
+        combo_lay(fc,f"📈 {chosen if chosen else 'All'}: Investment &amp; ROI",340)
         st.plotly_chart(fc, use_container_width=True)
     with s2:
         wf=sd.groupby("Year")["Investment_Amount_USD"].sum().reset_index().sort_values("Year")
@@ -587,7 +590,7 @@ elif st.session_state.page == "sector":
             connector=dict(line=dict(color=MUT,width=1.5)), increasing=dict(marker=dict(color=GRN)), decreasing=dict(marker=dict(color="#FF5252")),
             totals=dict(marker=dict(color=GOLD)), textposition="outside", text=[f"${v/1e6:.1f}M" for v in wf["delta"]]
         ))
-        T(f6,f"🌊 {chosen}: Investment Waterfall — YoY Change",340)
+        T(f6,f"🌊 {chosen if chosen else 'All'}: Investment Waterfall YoY",340)
         st.plotly_chart(f6, use_container_width=True)
 
     st.markdown('<div class="sec-title">🕸️ All-Sector Comparison Radar</div>', unsafe_allow_html=True)
@@ -607,7 +610,7 @@ elif st.session_state.page == "sector":
     f5.update_layout(
         polar=dict(bgcolor=D_BG2, radialaxis=dict(visible=True,gridcolor=GRID, tickfont=dict(color=MUT,size=9),color=MUT,range=[0,110]), angularaxis=dict(gridcolor=GRID,tickfont=dict(color=TXT,size=11),color=MUT)),
         paper_bgcolor=D_BG,font=dict(color=TXT,family="Plus Jakarta Sans,sans-serif"), legend=dict(bgcolor="rgba(0,0,0,0)",font=dict(color=MUT,size=11)),
-        title=dict(text=f"🕸️ Sector Radar — highlighted: {chosen}", font=dict(family="Space Grotesk,sans-serif",color=TXT,size=13),x=0.02), margin=dict(l=30,r=30,t=50,b=30),height=460,
+        title=dict(text=f"🕸️ Sector Radar — highlighted: {chosen if chosen else 'None'}", font=dict(family="Space Grotesk,sans-serif",color=TXT,size=13),x=0.02), margin=dict(l=30,r=30,t=50,b=30),height=460,
     )
     st.plotly_chart(f5, use_container_width=True)
 
@@ -616,5 +619,5 @@ st.markdown("""
 <div style="text-align:center;padding:24px 0 4px;color:#1E3050;font-size:.73rem;
             border-top:1px solid rgba(32,196,138,.06);margin-top:24px;">
   🌿 HDFC Bank Green Finance &amp; ESG Investment Tracker &nbsp;·&nbsp;
-  Streamlit + Plotly &nbsp;·&nbsp; v4.2
+  Streamlit + Plotly &nbsp;·&nbsp; v4.3
 </div>""", unsafe_allow_html=True)
