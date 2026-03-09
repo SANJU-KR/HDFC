@@ -569,11 +569,7 @@ elif st.session_state.page == "esg":
     f6.update_traces(
         textinfo="label+percent root",
         textfont=dict(family="Space Grotesk,sans-serif", size=11, color="#FFFFFF"),
-        marker=dict(
-            line=dict(color=D_BG2, width=1.5),
-            cornerradius=4,
-        ),
-        insidetextanchor="middle",
+        marker=dict(line=dict(color=D_BG2, width=1.5)),
     )
     f6.update_layout(
         paper_bgcolor=D_BG2,
@@ -671,55 +667,6 @@ elif st.session_state.page == "geo":
             fc.update_traces(marker_line_color="rgba(0,255,180,0.25)",
                              marker_line_width=1.2)
             st.plotly_chart(fc, use_container_width=True)
-
-            # ── Sector Filled Map ─────────────────────────────────────────
-            st.markdown('<div class="sec-title">🏭 Sector-level Filled Map — pick a sector</div>',
-                        unsafe_allow_html=True)
-            sector_for_map = st.selectbox(
-                "Select sector for state-level map",
-                ALL_SECTORS, key="geo_sector_map")
-            if sector_for_map == "All Sectors":
-                sec_map_df = df
-            else:
-                sec_map_df = df[df["Sector"]==sector_for_map]
-
-            sec_st = (sec_map_df.dropna(subset=["State"])
-                      .groupby(["State","State_geo"])
-                      .agg(Investment=("Investment_Amount_USD","sum"),
-                           CO2=("CO2_Reduction_Tons","sum"),
-                           ROI=("ROI_Percentage","mean"))
-                      .reset_index())
-            fcs = px.choropleth(
-                sec_st,
-                geojson=india_geo,
-                locations="State_geo",
-                featureidkey="properties.ST_NM",
-                color="Investment",
-                color_continuous_scale=[[0,"#07111F"],[0.2,"#003D2A"],
-                                        [0.6,GRN],[1.0,GRN2]],
-                hover_name="State",
-                hover_data={"Investment":":.2s","CO2":":.0f","ROI":":.1f","State_geo":False},
-                scope="asia",
-            )
-            fcs.update_geos(fitbounds="locations", visible=False, bgcolor=D_BG2,
-                            showocean=True, oceancolor="#060F1A",
-                            showland=True, landcolor="#0D1E30",
-                            showframe=False)
-            fcs.update_traces(marker_line_color="rgba(0,255,180,0.25)",
-                              marker_line_width=1.2)
-            fcs.update_layout(
-                paper_bgcolor=D_BG2, geo_bgcolor=D_BG2,
-                font=dict(family="Plus Jakarta Sans,sans-serif",color=TXT,size=11),
-                title=dict(
-                    text=f"🗺️ {sector_for_map} — State Investment Filled Map",
-                    font=dict(family="Space Grotesk,sans-serif",color=TXT,size=13),x=0.02),
-                coloraxis_colorbar=dict(title="Investment (USD)",
-                                        tickfont=dict(color=MUT),
-                                        title_font=dict(color=MUT),
-                                        bgcolor=D_BG),
-                margin=dict(l=0,r=0,t=50,b=0), height=500,
-            )
-            st.plotly_chart(fcs, use_container_width=True)
 
         else:
             st.warning("⚠️ Could not load India GeoJSON (check internet). Showing bubble map instead.")
