@@ -1,1028 +1,1094 @@
 """
-╔══════════════════════════════════════════════════════════════════════════╗
-║        HDFC Bank: Green Finance & ESG Investment Tracker                 ║
-║        Multi-Page Professional Streamlit Dashboard                       ║
-║        Pages: Overview | ESG Analysis | Geography | Carbon | ROI         ║
-╚══════════════════════════════════════════════════════════════════════════╝
-
+╔══════════════════════════════════════════════════════════════════════════════╗
+║        HDFC Bank: Green Finance & ESG Investment Tracker  v3.0              ║
+║        Multi-Page Professional Streamlit Dashboard                          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
 HOW TO RUN:
-    1. pip install streamlit plotly pandas numpy openpyxl
-    2. Place all 5 CSV files in the SAME folder as this script
-    3. streamlit run hdfc_esg_dashboard.py
+    1.  pip install streamlit plotly pandas numpy
+    2.  Place all 5 CSV files in the SAME folder as this script
+    3.  streamlit run hdfc_esg_dashboard.py
 """
 
-import streamlit as st
-import pandas as pd
+import datetime, warnings
 import numpy as np
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import warnings
+import streamlit as st
+
 warnings.filterwarnings("ignore")
 
-# ─────────────────────────────────────────────
-#  PAGE CONFIG  (must be first Streamlit call)
-# ─────────────────────────────────────────────
+# ─── PAGE CONFIG (must be first) ─────────────────────────────────────────────
 st.set_page_config(
-    page_title="HDFC Bank: Green Finance & ESG Tracker",
-    page_icon="🌿",
-    layout="wide",
+    page_title="HDFC Bank · Green Finance & ESG Tracker",
+    page_icon="🌿", layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ─────────────────────────────────────────────
-#  GLOBAL CSS — Dark banking + green accent
-# ─────────────────────────────────────────────
+# ─── GLOBAL CSS ───────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
-
-:root {
-    --hdfc-red:   #D32F2F;
-    --eco-green:  #00C896;
-    --eco-light:  #00FFB3;
-    --dark-bg:    #0A0E1A;
-    --card-bg:    #111827;
-    --card2-bg:   #1A2235;
-    --border:     rgba(0,200,150,0.18);
-    --text-main:  #E8F5E9;
-    --text-muted: #90A4AE;
-    --gold:       #FFD700;
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+:root{
+  --bg:#080E1C;--surf:#0E1829;--surf2:#132035;--surf3:#192845;
+  --bord:rgba(32,196,138,0.15);--green:#20C48A;--green2:#00FFB3;
+  --red:#E53935;--gold:#FFC107;--blue:#42A5F5;
+  --muted:#6B7FA3;--text:#DDE6F0;--white:#FFFFFF;
 }
-
-html, body, [data-testid="stAppViewContainer"] {
-    background-color: var(--dark-bg) !important;
-    font-family: 'DM Sans', sans-serif;
-    color: var(--text-main);
+html,body,[data-testid="stAppViewContainer"]{
+  background:var(--bg)!important;
+  font-family:'Plus Jakarta Sans',sans-serif!important;
+  color:var(--text)!important;
 }
-
-[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0D1B2A 0%, #0A1628 100%) !important;
-    border-right: 1px solid var(--border);
+[data-testid="stMain"]{background:var(--bg)!important;}
+[data-testid="block-container"]{padding:1.2rem 2rem 2rem!important;}
+[data-testid="stSidebar"]{
+  background:linear-gradient(180deg,#06101E 0%,#0A1628 100%)!important;
+  border-right:1px solid var(--bord)!important;
 }
-
-[data-testid="stSidebar"] * { color: var(--text-main) !important; }
-
-h1, h2, h3 { font-family: 'Syne', sans-serif !important; }
-
-/* KPI cards */
-.kpi-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 20px 24px;
-    text-align: center;
-    box-shadow: 0 4px 24px rgba(0,200,150,0.08);
-    transition: transform .2s;
+[data-testid="stSidebar"] *{color:var(--text)!important;}
+[data-testid="stSidebar"] label{color:var(--muted)!important;font-size:.73rem!important;text-transform:uppercase;letter-spacing:.8px;}
+.logo-wrap{background:linear-gradient(135deg,#B71C1C 0%,#C62828 55%,#7B0000 100%);border-radius:16px;padding:18px 20px 14px;margin-bottom:20px;border:1px solid rgba(255,255,255,.07);}
+.logo-title{font-family:'Space Grotesk',sans-serif;font-size:1.05rem;font-weight:700;color:#fff;margin:0;letter-spacing:.3px;}
+.logo-sub{font-size:.7rem;color:rgba(255,255,255,.5);margin:3px 0 0;}
+div[data-testid="stSidebar"] .stButton>button{
+  background:transparent!important;border:1px solid rgba(32,196,138,.18)!important;
+  color:var(--text)!important;border-radius:10px!important;width:100%!important;
+  text-align:left!important;padding:9px 14px!important;font-size:.82rem!important;
+  font-family:'Plus Jakarta Sans',sans-serif!important;margin-bottom:3px!important;
+  transition:all .18s ease!important;
 }
-.kpi-card:hover { transform: translateY(-3px); }
-.kpi-value {
-    font-family: 'Syne', sans-serif;
-    font-size: 2rem;
-    font-weight: 800;
-    color: var(--eco-green);
-    margin: 6px 0 2px;
+div[data-testid="stSidebar"] .stButton>button:hover{
+  background:rgba(32,196,138,.12)!important;border-color:var(--green)!important;
+  color:var(--green)!important;transform:translateX(3px)!important;
 }
-.kpi-label {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-}
-.kpi-delta { font-size: 0.82rem; color: #69F0AE; margin-top: 4px; }
-
-/* Section titles */
-.section-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 1.35rem;
-    font-weight: 700;
-    color: var(--eco-green);
-    border-left: 4px solid var(--eco-green);
-    padding-left: 12px;
-    margin: 28px 0 16px;
-}
-
-/* Page header */
-.page-header {
-    background: linear-gradient(135deg, #0D2137 0%, #0A1628 60%, #061A14 100%);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 28px 36px;
-    margin-bottom: 28px;
-}
-.page-header h1 {
-    font-size: 2rem;
-    font-weight: 800;
-    color: var(--eco-green);
-    margin: 0 0 4px;
-}
-.page-header p { color: var(--text-muted); margin: 0; font-size: 0.92rem; }
-
-/* Nav buttons */
-.stButton > button {
-    background: transparent !important;
-    border: 1px solid var(--border) !important;
-    color: var(--text-main) !important;
-    border-radius: 10px !important;
-    width: 100% !important;
-    text-align: left !important;
-    padding: 10px 14px !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-size: 0.88rem !important;
-    transition: all .2s !important;
-    margin-bottom: 4px !important;
-}
-.stButton > button:hover {
-    background: rgba(0,200,150,0.12) !important;
-    border-color: var(--eco-green) !important;
-    color: var(--eco-green) !important;
-}
-
-/* Plotly chart background */
-.js-plotly-plot { border-radius: 14px; overflow: hidden; }
-
-/* Sidebar logo area */
-.sidebar-logo {
-    background: linear-gradient(135deg, var(--hdfc-red), #B71C1C);
-    border-radius: 14px;
-    padding: 18px;
-    text-align: center;
-    margin-bottom: 20px;
-}
-.sidebar-logo h2 {
-    color: #fff !important;
-    font-family: 'Syne', sans-serif !important;
-    font-size: 1.1rem !important;
-    margin: 0 !important;
-}
-.sidebar-logo p { color: rgba(255,255,255,.7) !important; font-size: .75rem !important; margin: 4px 0 0 !important; }
-
-/* Ribbon / info bar */
-.ribbon {
-    display: flex;
-    gap: 16px;
-    background: var(--card2-bg);
-    border-radius: 12px;
-    padding: 14px 20px;
-    border: 1px solid var(--border);
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-}
-.ribbon-item { text-align: center; flex: 1; min-width: 100px; }
-.ribbon-val { font-weight: 700; color: var(--eco-green); font-size: 1.1rem; }
-.ribbon-lbl { font-size: 0.72rem; color: var(--text-muted); }
-
-/* Insight box */
-.insight-box {
-    background: rgba(0,200,150,0.07);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 14px 18px;
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    margin-top: 10px;
-}
-.insight-box b { color: var(--eco-green); }
-
-/* Hide streamlit default elements */
-#MainMenu, footer, header { visibility: hidden; }
-[data-testid="stDecoration"] { display: none; }
+.kpi-card{background:var(--surf);border:1px solid var(--bord);border-radius:14px;
+  padding:18px 20px 14px;position:relative;overflow:hidden;
+  transition:transform .2s,box-shadow .2s;}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--green),transparent);}
+.kpi-card:hover{transform:translateY(-3px);box-shadow:0 8px 32px rgba(32,196,138,.12);}
+.kpi-icon{font-size:1.25rem;margin-bottom:8px;}
+.kpi-val{font-family:'Space Grotesk',sans-serif;font-size:1.65rem;font-weight:700;
+  color:var(--green);line-height:1;margin:0 0 4px;}
+.kpi-label{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.kpi-delta{font-size:.73rem;color:#69F0AE;margin-top:4px;}
+.pg-header{background:linear-gradient(135deg,#0C1E38 0%,#091425 60%,#061812 100%);
+  border:1px solid var(--bord);border-radius:18px;padding:24px 30px 18px;
+  margin-bottom:24px;display:flex;align-items:center;gap:16px;}
+.pg-icon{font-size:2rem;}
+.pg-title{font-family:'Space Grotesk',sans-serif;font-size:1.5rem;font-weight:700;color:var(--white);margin:0 0 3px;}
+.pg-sub{font-size:.8rem;color:var(--muted);margin:0;}
+.sec-title{font-family:'Space Grotesk',sans-serif;font-size:.95rem;font-weight:600;
+  color:var(--green);display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid var(--bord);padding-bottom:8px;margin:24px 0 12px;}
+.ribbon{background:var(--surf2);border:1px solid var(--bord);border-radius:12px;
+  padding:12px 18px;display:flex;gap:0;margin-bottom:20px;}
+.rib-item{flex:1;text-align:center;border-right:1px solid var(--bord);padding:0 10px;}
+.rib-item:last-child{border-right:none;}
+.rib-val{font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--green);font-size:1rem;}
+.rib-lbl{font-size:.67rem;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:2px;}
+.insight{background:linear-gradient(135deg,rgba(32,196,138,.07),rgba(32,196,138,.02));
+  border:1px solid rgba(32,196,138,.2);border-left:3px solid var(--green);
+  border-radius:10px;padding:14px 18px;font-size:.83rem;color:var(--muted);
+  margin-top:14px;line-height:1.65;}
+.insight b{color:var(--green);}
+#MainMenu,footer,header{visibility:hidden;}
+[data-testid="stDecoration"]{display:none;}
 </style>
 """, unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────
-#  PLOTLY DARK TEMPLATE
-# ─────────────────────────────────────────────
-CHART_TEMPLATE = dict(
-    layout=go.Layout(
-        paper_bgcolor="#111827",
-        plot_bgcolor="#111827",
-        font=dict(family="DM Sans", color="#E8F5E9", size=12),
-        title_font=dict(family="Syne", color="#E8F5E9", size=15),
-        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="#90A4AE")),
-        xaxis=dict(gridcolor="rgba(255,255,255,0.06)", linecolor="rgba(255,255,255,0.1)", tickfont=dict(color="#90A4AE")),
-        yaxis=dict(gridcolor="rgba(255,255,255,0.06)", linecolor="rgba(255,255,255,0.1)", tickfont=dict(color="#90A4AE")),
-        margin=dict(l=20, r=20, t=45, b=20),
-    )
+# ─── CHART CONSTANTS ──────────────────────────────────────────────────────────
+D_BG  = "#0E1829"
+D_BG2 = "#080E1C"
+GRN   = "#20C48A"
+GRN2  = "#00FFB3"
+GOLD  = "#FFC107"
+BLUE  = "#42A5F5"
+MUT   = "#6B7FA3"
+TXT   = "#DDE6F0"
+GRID  = "rgba(255,255,255,0.05)"
+LINE  = "rgba(255,255,255,0.08)"
+PAL   = [GRN, "#00FFB3", "#26D07C", "#69F0AE", "#00897B",
+         "#1DE9B6", GOLD, "#FF7043", BLUE, "#CE93D8"]
+RISK_C = {"Low": GRN, "Medium": GOLD, "High": "#FF5252"}
+
+# ─── BASE LAYOUT (plain dict — safe to unpack with **) ───────────────────────
+BL = dict(
+    paper_bgcolor=D_BG,
+    plot_bgcolor=D_BG,
+    font=dict(family="Plus Jakarta Sans,sans-serif", color=TXT, size=12),
+    title_font=dict(family="Space Grotesk,sans-serif", color=TXT, size=13),
+    legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color=MUT, size=11),
+                bordercolor="rgba(0,0,0,0)"),
+    xaxis=dict(gridcolor=GRID, linecolor=LINE, tickfont=dict(color=MUT, size=11),
+               title_font=dict(color=MUT)),
+    yaxis=dict(gridcolor=GRID, linecolor=LINE, tickfont=dict(color=MUT, size=11),
+               title_font=dict(color=MUT)),
+    margin=dict(l=12, r=12, t=48, b=12),
+    coloraxis_colorbar=dict(tickfont=dict(color=MUT), title_font=dict(color=MUT)),
 )
 
-GREEN_PALETTE = [
-    "#00C896","#00FFB3","#26D07C","#69F0AE","#00897B",
-    "#1DE9B6","#B2DFDB","#FFD700","#FF6B6B","#A78BFA"
-]
-
-def apply_template(fig):
-    fig.update_layout(CHART_TEMPLATE["layout"])
+def T(fig, title="", h=None):
+    """Apply dark template + title + optional height. Returns fig."""
+    kw = dict(**BL)
+    kw["title"] = dict(text=title, font=dict(family="Space Grotesk,sans-serif",
+                                              color=TXT, size=13), x=0.02, xanchor="left")
+    if h:
+        kw["height"] = h
+    fig.update_layout(**kw)
     return fig
 
-# ─────────────────────────────────────────────
-#  DATA LOADING  (cached — loads only once)
-# ─────────────────────────────────────────────
-@st.cache_data(show_spinner="🌿 Loading ESG data...")
+def combo_layout(fig, title, h=340):
+    """Layout for make_subplots dual-axis charts (no xaxis/yaxis keys conflict)."""
+    fig.update_layout(
+        paper_bgcolor=D_BG, plot_bgcolor=D_BG,
+        font=dict(family="Plus Jakarta Sans,sans-serif", color=TXT, size=11),
+        title=dict(text=title, font=dict(family="Space Grotesk,sans-serif",
+                                          color=TXT, size=13), x=0.02),
+        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color=MUT, size=11)),
+        xaxis=dict(gridcolor=GRID, linecolor=LINE, tickfont=dict(color=MUT)),
+        yaxis=dict(gridcolor=GRID, linecolor=LINE, tickfont=dict(color=MUT)),
+        margin=dict(l=12, r=12, t=48, b=12), height=h,
+    )
+
+# ─── INDIA STATE COORDS ───────────────────────────────────────────────────────
+STATE_LL = {
+    "Andhra Pradesh":(15.91,79.74),"Arunachal Pradesh":(28.22,94.73),
+    "Assam":(26.20,92.94),"Bihar":(25.10,85.31),"Chhattisgarh":(21.28,81.87),
+    "Delhi":(28.70,77.10),"Goa":(15.30,74.12),"Gujarat":(22.26,71.19),
+    "Haryana":(29.06,76.09),"Himachal Pradesh":(31.10,77.17),
+    "Jharkhand":(23.61,85.28),"Karnataka":(15.32,75.71),"Kerala":(10.85,76.27),
+    "Madhya Pradesh":(22.97,78.66),"Maharashtra":(19.75,75.71),"Manipur":(24.66,93.91),
+    "Meghalaya":(25.47,91.37),"Mizoram":(23.16,92.94),"Nagaland":(26.16,94.56),
+    "Odisha":(20.95,85.10),"Punjab":(31.15,75.34),"Rajasthan":(27.02,74.22),
+    "Sikkim":(27.53,88.51),"Tamil Nadu":(11.13,78.66),"Telangana":(18.11,79.02),
+    "Tripura":(23.94,91.99),"Uttar Pradesh":(26.85,80.95),"Uttarakhand":(30.07,79.02),
+    "West Bengal":(22.99,87.86),"Jammu and Kashmir":(33.78,76.58),
+    "Ladakh":(34.30,78.29),"Puducherry":(11.94,79.83),"Chandigarh":(30.74,76.79),
+}
+
+# ─── DATA LOADING ─────────────────────────────────────────────────────────────
+@st.cache_data(show_spinner="🌿 Loading ESG data…")
 def load_data():
-    geo  = pd.read_csv("green_investments_geographic.csv", parse_dates=["Project_Start_Date"])
+    geo  = pd.read_csv("green_investments_geographic.csv",
+                       parse_dates=["Project_Start_Date"])
     cr   = pd.read_csv("carbon_reduction.csv")
     esg  = pd.read_csv("esg_scores_companies.csv")
     roi  = pd.read_csv("roi_returns.csv")
-    sec  = pd.read_csv("sector_info.csv", header=None, names=["Sector", "Description"])
-
-    # Merge master table
-    master = geo.merge(cr,  on="Project_ID", how="left", suffixes=("","_cr"))
-    master = master.merge(roi, on="Project_ID", how="left")
-    master = master.merge(esg, on="Company_Name", how="left")
-
-    # Unify Year column
-    if "Year_cr" in master.columns:
-        master["Year"] = master["Year"].fillna(master["Year_cr"])
-        master.drop(columns=["Year_cr"], inplace=True)
-
-    master["Year"] = master["Year"].astype(int)
-    master["Investment_Cr"] = master["Investment_Amount_USD"] / 1e7  # USD → Crore (approx)
-    return master, esg, sec
+    sec  = pd.read_csv("sector_info.csv", header=None,
+                       names=["Sector", "Description"])
+    m = geo.merge(cr,  on="Project_ID", how="left", suffixes=("", "_cr"))
+    m = m.merge(roi, on="Project_ID", how="left")
+    m = m.merge(esg, on="Company_Name", how="left")
+    if "Year_cr" in m.columns:
+        m["Year"] = m["Year"].fillna(m["Year_cr"])
+        m.drop(columns=["Year_cr"], inplace=True)
+    m["Year"] = m["Year"].astype(int)
+    m["Investment_M"] = m["Investment_Amount_USD"] / 1e6
+    m["lat"] = m["State"].map(lambda s: STATE_LL.get(s, (None, None))[0])
+    m["lon"] = m["State"].map(lambda s: STATE_LL.get(s, (None, None))[1])
+    return m, sec
 
 try:
-    master, esg_df, sector_df = load_data()
-    DATA_LOADED = True
+    master, sector_df = load_data()
+    DATA_OK   = True
+    MIN_DATE  = datetime.date(int(master["Year"].min()), 1, 1)
+    MAX_DATE  = datetime.date(int(master["Year"].max()), 12, 31)
 except FileNotFoundError as e:
-    DATA_LOADED = False
-    LOAD_ERROR  = str(e)
+    DATA_OK = False; ERR_MSG = str(e)
 
-# ─────────────────────────────────────────────
-#  SIDEBAR  — Navigation + Global Filters
-# ─────────────────────────────────────────────
+# ─── SIDEBAR ──────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
-    <div class="sidebar-logo">
-        <h2>🏦 HDFC Bank</h2>
-        <p>Green Finance & ESG Tracker</p>
-    </div>
-    """, unsafe_allow_html=True)
+    <div class="logo-wrap">
+      <div class="logo-title">🏦 HDFC Bank</div>
+      <div class="logo-sub">Green Finance &amp; ESG Investment Tracker</div>
+    </div>""", unsafe_allow_html=True)
 
-    st.markdown("### 📌 Navigation")
-    pages = {
-        "🏠 Executive Overview":      "overview",
-        "🌿 ESG Analysis":            "esg",
-        "🗺️ Geographic Intelligence": "geo",
-        "🌍 Carbon Reduction":        "carbon",
-        "💰 ROI & Returns":           "roi",
-        "🔍 Sector Deep Dive":        "sector",
+    st.markdown("##### 📌 Navigation")
+    PAGES = {
+        "🏠 Executive Overview":       "overview",
+        "🌿 ESG Analysis":             "esg",
+        "🗺️  Geographic Intelligence":  "geo",
+        "🌍 Carbon Reduction":         "carbon",
+        "💰 ROI & Returns":            "roi",
+        "🔍 Sector Deep Dive":         "sector",
     }
-
     if "page" not in st.session_state:
         st.session_state.page = "overview"
-
-    for label, key in pages.items():
-        if st.button(label, key=f"nav_{key}"):
+    for lbl, key in PAGES.items():
+        if st.button(lbl, key=f"nav_{key}"):
             st.session_state.page = key
 
-    # ── Global Slicers ──────────────────────
-    if DATA_LOADED:
+    if DATA_OK:
         st.markdown("---")
-        st.markdown("### 🎛️ Global Filters")
+        st.markdown("##### 🎛️ Global Filters")
 
-        years = sorted(master["Year"].dropna().unique().tolist())
-        sel_years = st.select_slider(
-            "📅 Year Range",
-            options=years,
-            value=(min(years), max(years))
+        # Date range picker (matches screenshot)
+        st.markdown("<span style='font-size:.72rem;color:#6B7FA3;text-transform:uppercase;letter-spacing:.8px;'>📅 Date Range</span>", unsafe_allow_html=True)
+        date_range = st.date_input(
+            "", value=(MIN_DATE, MAX_DATE),
+            min_value=MIN_DATE, max_value=MAX_DATE,
+            label_visibility="collapsed",
         )
 
-        sectors = ["All"] + sorted(master["Sector"].dropna().unique().tolist())
-        sel_sector = st.multiselect("🏭 Sector", sectors[1:], default=sectors[1:])
+        years = sorted(master["Year"].unique().tolist())
+        yr_range = st.select_slider("🗓️ Year Slider", options=years,
+                                    value=(min(years), max(years)))
+
+        sectors = sorted(master["Sector"].dropna().unique().tolist())
+        sel_sectors = st.multiselect("🏭 Sector", sectors, default=sectors)
 
         regions = ["All"] + sorted(master["Region"].dropna().unique().tolist())
         sel_region = st.selectbox("📍 Region", regions)
 
-        risk_cats = ["All", "Low", "Medium", "High"]
-        sel_risk = st.selectbox("⚠️ ESG Risk", risk_cats)
+        sel_risk = st.selectbox("⚠️ ESG Risk", ["All", "Low", "Medium", "High"])
 
         st.markdown("---")
-        st.caption("📊 Dashboard v2.0 | HDFC Green Finance")
-        st.caption(f"🗂️ {len(master):,} investment records loaded")
+        st.caption(f"📊 v3.0  ·  {len(master):,} records")
 
-# ─────────────────────────────────────────────
-#  FILTER HELPER
-# ─────────────────────────────────────────────
-def apply_filters(df):
+# ─── GUARD ────────────────────────────────────────────────────────────────────
+if not DATA_OK:
+    st.error(f"❌ CSV not found: {ERR_MSG}")
+    st.stop()
+
+# ─── FILTER ───────────────────────────────────────────────────────────────────
+def filt(df):
     d = df.copy()
-    d = d[(d["Year"] >= sel_years[0]) & (d["Year"] <= sel_years[1])]
-    if sel_sector:
-        d = d[d["Sector"].isin(sel_sector)]
+    if len(date_range) == 2:
+        d = d[(d["Year"] >= date_range[0].year) &
+              (d["Year"] <= date_range[1].year)]
+    d = d[(d["Year"] >= yr_range[0]) & (d["Year"] <= yr_range[1])]
+    if sel_sectors:
+        d = d[d["Sector"].isin(sel_sectors)]
     if sel_region != "All":
         d = d[d["Region"] == sel_region]
     if sel_risk != "All":
         d = d[d["Risk_Category"] == sel_risk]
     return d
 
-# ─────────────────────────────────────────────
-#  GUARD: Data not loaded
-# ─────────────────────────────────────────────
-if not DATA_LOADED:
-    st.error(f"❌ CSV files not found: `{LOAD_ERROR}`\n\nPlace all 5 CSV files in the same folder as this script and restart.")
-    st.stop()
+df = filt(master)
 
-# ─────────────────────────────────────────────
-#  FILTERED MASTER
-# ─────────────────────────────────────────────
-df = apply_filters(master)
+def kpi(icon, val, label, delta=""):
+    return f"""<div class="kpi-card"><div class="kpi-icon">{icon}</div>
+    <div class="kpi-val">{val}</div><div class="kpi-label">{label}</div>
+    {"<div class='kpi-delta'>"+delta+"</div>" if delta else ""}</div>"""
 
-# ══════════════════════════════════════════════
-#  PAGE 1 — EXECUTIVE OVERVIEW
-# ══════════════════════════════════════════════
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  P1 · EXECUTIVE OVERVIEW
+# ══════════════════════════════════════════════════════════════════════════════
 if st.session_state.page == "overview":
-    st.markdown("""
-    <div class="page-header">
-        <h1>🏠 Executive Overview</h1>
-        <p>HDFC Bank Green Finance & ESG Investment Tracker — Consolidated Performance Dashboard</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("""<div class="pg-header"><div class="pg-icon">🏠</div>
+    <div><div class="pg-title">Executive Overview</div>
+    <div class="pg-sub">HDFC Bank Green Finance &amp; ESG — Consolidated Performance Dashboard</div>
+    </div></div>""", unsafe_allow_html=True)
 
-    # ── KPI Row ─────────────────────────────
-    total_inv   = df["Investment_Amount_USD"].sum() / 1e9
-    total_co2   = df["CO2_Reduction_Tons"].sum() / 1e6
-    avg_roi     = df["ROI_Percentage"].mean()
-    avg_esg     = df["ESG_Score"].mean()
-    n_projects  = df["Project_ID"].nunique()
-    n_states    = df["State"].nunique()
+    inv  = df["Investment_Amount_USD"].sum() / 1e9
+    co2  = df["CO2_Reduction_Tons"].sum() / 1e6
+    roi  = df["ROI_Percentage"].mean()
+    esg  = df["ESG_Score"].mean()
+    npr  = df["Project_ID"].nunique()
+    nst  = df["State"].nunique()
 
     c1,c2,c3,c4,c5,c6 = st.columns(6)
-    kpis = [
-        (c1, f"${total_inv:.2f}B",  "Total Investment",        "↑ Green Portfolio"),
-        (c2, f"{total_co2:.2f}M T", "CO₂ Reduced",            "🌍 Carbon Impact"),
-        (c3, f"{avg_roi:.1f}%",     "Avg ROI",                 "📈 Returns"),
-        (c4, f"{avg_esg:.1f}",      "Avg ESG Score",           "🌿 ESG Health"),
-        (c5, f"{n_projects:,}",     "Active Projects",         "🏗️ Initiatives"),
-        (c6, f"{n_states}",         "States Covered",          "📍 Reach"),
-    ]
-    for col, val, lbl, delta in kpis:
-        with col:
-            st.markdown(f"""
-            <div class="kpi-card">
-                <div class="kpi-label">{lbl}</div>
-                <div class="kpi-value">{val}</div>
-                <div class="kpi-delta">{delta}</div>
-            </div>""", unsafe_allow_html=True)
+    for col,(ic,vl,lb,dl) in zip([c1,c2,c3,c4,c5,c6],[
+        ("💵",f"${inv:.2f}B","Total Investment","↑ Green Portfolio"),
+        ("🌍",f"{co2:.2f}M T","CO₂ Avoided",f"≈{co2/4.6:.1f}M cars off road"),
+        ("📈",f"{roi:.1f}%","Avg Portfolio ROI","Risk-Adjusted"),
+        ("🌿",f"{esg:.1f}","Avg ESG Score","Portfolio Health"),
+        ("🏗️",f"{npr:,}","Active Projects","All sectors"),
+        ("📍",f"{nst}","States Covered","Pan-India Reach"),
+    ]):
+        with col: st.markdown(kpi(ic,vl,lb,dl), unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    # Ribbon
+    bsec = df.groupby("Sector")["Investment_Amount_USD"].sum().idxmax() if len(df)>0 else "—"
+    breg = df.groupby("Region")["Investment_Amount_USD"].sum().idxmax() if len(df)>0 else "—"
+    brs  = df.groupby("Sector")["ROI_Percentage"].mean().idxmax() if len(df)>0 else "—"
+    lrpct= round(len(df[df["Risk_Category"]=="Low"])/max(len(df),1)*100,1)
+    st.markdown(f"""<div class="ribbon" style="margin-top:14px;">
+    <div class="rib-item"><div class="rib-val">{df['Sector'].nunique()}</div><div class="rib-lbl">Sectors</div></div>
+    <div class="rib-item"><div class="rib-val">{bsec}</div><div class="rib-lbl">Top Invested</div></div>
+    <div class="rib-item"><div class="rib-val">{breg}</div><div class="rib-lbl">Leading Region</div></div>
+    <div class="rib-item"><div class="rib-val">{brs}</div><div class="rib-lbl">Best ROI Sector</div></div>
+    <div class="rib-item"><div class="rib-val">{lrpct}%</div><div class="rib-lbl">Low-Risk Projects</div></div>
+    <div class="rib-item"><div class="rib-val">{yr_range[0]}–{yr_range[1]}</div><div class="rib-lbl">Period</div></div>
+    </div>""", unsafe_allow_html=True)
 
-    # ── Ribbon summary bar ──────────────────
-    total_sectors = df["Sector"].nunique()
-    best_sector   = df.groupby("Sector")["Investment_Amount_USD"].sum().idxmax()
-    top_region    = df.groupby("Region")["Investment_Amount_USD"].sum().idxmax()
-    best_roi_sec  = df.groupby("Sector")["ROI_Percentage"].mean().idxmax()
+    # Stacked area + donut
+    st.markdown('<div class="sec-title">📊 Investment Trends &amp; Sector Mix</div>', unsafe_allow_html=True)
+    a1, a2 = st.columns([3, 2])
+    with a1:
+        tr = df.groupby(["Year","Sector"])["Investment_Amount_USD"].sum().reset_index()
+        f = px.area(tr, x="Year", y="Investment_Amount_USD", color="Sector",
+                    color_discrete_sequence=PAL, line_shape="spline")
+        f.update_traces(line=dict(width=1.8))
+        T(f, "📈 Annual Green Investment by Sector — Stacked Area", 340)
+        st.plotly_chart(f, use_container_width=True)
+    with a2:
+        pd_ = df.groupby("Sector")["Investment_Amount_USD"].sum().reset_index()
+        f2 = px.pie(pd_, values="Investment_Amount_USD", names="Sector",
+                    color_discrete_sequence=PAL, hole=0.58)
+        f2.update_traces(textinfo="label+percent", textfont_size=10,
+                         marker=dict(line=dict(color=D_BG, width=2)))
+        T(f2, "🥧 Portfolio Sector Allocation", 340)
+        st.plotly_chart(f2, use_container_width=True)
 
-    st.markdown(f"""
-    <div class="ribbon">
-        <div class="ribbon-item"><div class="ribbon-val">{total_sectors}</div><div class="ribbon-lbl">Sectors</div></div>
-        <div class="ribbon-item"><div class="ribbon-val">{best_sector}</div><div class="ribbon-lbl">Top Invested Sector</div></div>
-        <div class="ribbon-item"><div class="ribbon-val">{top_region}</div><div class="ribbon-lbl">Leading Region</div></div>
-        <div class="ribbon-item"><div class="ribbon-val">{best_roi_sec}</div><div class="ribbon-lbl">Best ROI Sector</div></div>
-        <div class="ribbon-item"><div class="ribbon-val">{sel_years[0]}–{sel_years[1]}</div><div class="ribbon-lbl">Period</div></div>
-    </div>
-    """, unsafe_allow_html=True)
+    # 3-col snapshot
+    st.markdown('<div class="sec-title">🌿 Risk · Carbon · ROI Snapshot</div>', unsafe_allow_html=True)
+    b1, b2, b3 = st.columns(3)
+    with b1:
+        er = df.groupby("Risk_Category")["Investment_Amount_USD"].sum().reset_index()
+        er["ord"] = er["Risk_Category"].map({"Low":0,"Medium":1,"High":2})
+        er = er.sort_values("ord")
+        f3 = px.bar(er, x="Risk_Category", y="Investment_Amount_USD",
+                    color="Risk_Category", text_auto=".2s",
+                    color_discrete_map=RISK_C)
+        f3.update_traces(textposition="outside", textfont_color=TXT)
+        T(f3, "⚠️ Investment by ESG Risk Tier", 300)
+        st.plotly_chart(f3, use_container_width=True)
+    with b2:
+        cy = df.groupby("Year")["CO2_Reduction_Tons"].sum().reset_index()
+        f4 = px.bar(cy, x="Year", y="CO2_Reduction_Tons",
+                    color="CO2_Reduction_Tons",
+                    color_continuous_scale="Greens", text_auto=".2s")
+        f4.update_traces(textposition="outside", textfont_color=TXT)
+        T(f4, "🌍 CO₂ Reduced Per Year (Tonnes)", 300)
+        st.plotly_chart(f4, use_container_width=True)
+    with b3:
+        rs = df.groupby("Sector")["ROI_Percentage"].mean().reset_index().sort_values("ROI_Percentage")
+        f5 = px.bar(rs, x="ROI_Percentage", y="Sector", orientation="h",
+                    color="ROI_Percentage", color_continuous_scale="Teal",
+                    text_auto=".1f")
+        f5.update_traces(textposition="outside", textfont_color=TXT)
+        T(f5, "💰 Avg ROI by Sector (%)", 300)
+        st.plotly_chart(f5, use_container_width=True)
 
-    # ── Row 1: Investment trend + Sector pie ─
-    st.markdown('<div class="section-title">📊 Investment Trends & Sector Mix</div>', unsafe_allow_html=True)
-    r1c1, r1c2 = st.columns([3, 2])
+    # YoY + Quarter
+    st.markdown('<div class="sec-title">📆 Seasonality &amp; Growth</div>', unsafe_allow_html=True)
+    g1, g2 = st.columns([2, 3])
+    with g1:
+        qd = df.groupby("Quarter")["Investment_Amount_USD"].sum().reset_index()
+        qd["ord"] = qd["Quarter"].map({"Q1":0,"Q2":1,"Q3":2,"Q4":3})
+        qd = qd.sort_values("ord")
+        f6 = px.pie(qd, values="Investment_Amount_USD", names="Quarter",
+                    color_discrete_sequence=[GRN, GRN2, GOLD, BLUE], hole=0.52)
+        f6.update_traces(textinfo="label+percent")
+        T(f6, "📅 Investment by Quarter", 300)
+        st.plotly_chart(f6, use_container_width=True)
+    with g2:
+        yy = df.groupby("Year")["Investment_Amount_USD"].sum().reset_index()
+        yy["YoY"] = yy["Investment_Amount_USD"].pct_change() * 100
+        f7 = make_subplots(specs=[[{"secondary_y": True}]])
+        f7.add_trace(go.Bar(x=yy["Year"], y=yy["Investment_Amount_USD"],
+                            name="Investment", marker_color=GRN, opacity=0.78),
+                     secondary_y=False)
+        f7.add_trace(go.Scatter(x=yy["Year"], y=yy["YoY"],
+                                name="YoY Growth %", mode="lines+markers",
+                                line=dict(color=GOLD, width=2.5),
+                                marker=dict(size=7, color=GOLD,
+                                            line=dict(color=D_BG, width=2))),
+                     secondary_y=True)
+        combo_layout(f7, "📊 Investment Volume &amp; YoY Growth", 300)
+        f7.update_yaxes(gridcolor="rgba(0,0,0,0)",
+                        tickfont=dict(color=GOLD), secondary_y=True)
+        st.plotly_chart(f7, use_container_width=True)
 
-    with r1c1:
-        trend = df.groupby(["Year","Sector"])["Investment_Amount_USD"].sum().reset_index()
-        fig = px.area(trend, x="Year", y="Investment_Amount_USD", color="Sector",
-                      color_discrete_sequence=GREEN_PALETTE,
-                      labels={"Investment_Amount_USD":"Investment (USD)"},
-                      title="📈 Annual Investment by Sector (Stacked Area)")
-        fig.update_traces(line=dict(width=1.5))
-        apply_template(fig)
-        st.plotly_chart(fig, use_container_width=True)
+    st.markdown(f"""<div class="insight">
+    💡 <b>Executive Summary:</b> HDFC's green portfolio spans <b>{df['Sector'].nunique()} sectors</b>
+    across <b>{nst} states</b>, deploying <b>${inv:.2f}B</b>.
+    Total CO₂ avoided: <b>{co2:.2f}M tonnes</b> — equivalent to removing
+    ~<b>{co2/4.6:.1f}M cars</b> from roads for a year.
+    <b>{bsec}</b> leads investment volume; <b>{brs}</b> delivers the highest returns.
+    <b>{lrpct}%</b> of projects are in the Low ESG Risk tier.
+    </div>""", unsafe_allow_html=True)
 
-    with r1c2:
-        pie_data = df.groupby("Sector")["Investment_Amount_USD"].sum().reset_index()
-        fig2 = px.pie(pie_data, values="Investment_Amount_USD", names="Sector",
-                      color_discrete_sequence=GREEN_PALETTE,
-                      hole=0.52, title="🥧 Portfolio Sector Split")
-        fig2.update_traces(textinfo="label+percent", textfont_size=11,
-                           marker=dict(line=dict(color="#111827", width=2)))
-        apply_template(fig2)
-        st.plotly_chart(fig2, use_container_width=True)
 
-    # ── Row 2: ESG dist + CO2 bar + ROI box ─
-    st.markdown('<div class="section-title">🌿 ESG, Carbon & ROI Snapshot</div>', unsafe_allow_html=True)
-    r2c1, r2c2, r2c3 = st.columns(3)
-
-    with r2c1:
-        esg_risk = df.groupby("Risk_Category")["Investment_Amount_USD"].sum().reset_index()
-        risk_order = {"Low":0,"Medium":1,"High":2}
-        esg_risk["order"] = esg_risk["Risk_Category"].map(risk_order)
-        esg_risk = esg_risk.sort_values("order")
-        fig3 = px.bar(esg_risk, x="Risk_Category", y="Investment_Amount_USD",
-                      color="Risk_Category", text_auto=".2s",
-                      color_discrete_map={"Low":"#00C896","Medium":"#FFD700","High":"#FF6B6B"},
-                      title="⚠️ Investment by ESG Risk Category")
-        apply_template(fig3)
-        st.plotly_chart(fig3, use_container_width=True)
-
-    with r2c2:
-        co2_yr = df.groupby("Year")["CO2_Reduction_Tons"].sum().reset_index()
-        fig4 = px.bar(co2_yr, x="Year", y="CO2_Reduction_Tons",
-                      color="CO2_Reduction_Tons", color_continuous_scale="Greens",
-                      text_auto=".2s", title="🌍 CO₂ Reduced Per Year (Tons)")
-        apply_template(fig4)
-        st.plotly_chart(fig4, use_container_width=True)
-
-    with r2c3:
-        roi_sec = df.groupby("Sector")["ROI_Percentage"].mean().reset_index().sort_values("ROI_Percentage", ascending=True)
-        fig5 = px.bar(roi_sec, x="ROI_Percentage", y="Sector", orientation="h",
-                      color="ROI_Percentage", color_continuous_scale="Teal",
-                      text_auto=".1f", title="💰 Avg ROI by Sector (%)")
-        apply_template(fig5)
-        st.plotly_chart(fig5, use_container_width=True)
-
-    # ── Insight strip ───────────────────────
-    st.markdown(f"""
-    <div class="insight-box">
-    💡 <b>AI Insight:</b> The <b>{best_sector}</b> sector has attracted the highest cumulative investment in the selected period.
-    <b>{best_roi_sec}</b> leads in average ROI at <b>{df[df['Sector']==best_roi_sec]['ROI_Percentage'].mean():.1f}%</b>,
-    while <b>{top_region}</b> is the dominant geographic region.
-    Total CO₂ avoided: <b>{total_co2:.2f} Million Tonnes</b> — equivalent to removing ~{total_co2/4.6:.1f}M cars from roads for a year.
-    </div>
-    """, unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════
-#  PAGE 2 — ESG ANALYSIS
-# ══════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+#  P2 · ESG ANALYSIS
+# ══════════════════════════════════════════════════════════════════════════════
 elif st.session_state.page == "esg":
-    st.markdown("""
-    <div class="page-header">
-        <h1>🌿 ESG Analysis</h1>
-        <p>Environmental, Social & Governance deep-dive across companies and risk tiers</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("""<div class="pg-header"><div class="pg-icon">🌿</div>
+    <div><div class="pg-title">ESG Analysis</div>
+    <div class="pg-sub">Environmental · Social · Governance deep-dive across companies and risk tiers</div>
+    </div></div>""", unsafe_allow_html=True)
 
-    # ── ESG Score distribution histogram ────
-    st.markdown('<div class="section-title">📊 ESG Score Distribution</div>', unsafe_allow_html=True)
-    hc1, hc2 = st.columns([3,2])
-
-    with hc1:
-        fig = px.histogram(df.dropna(subset=["ESG_Score"]), x="ESG_Score",
-                           color="Risk_Category", nbins=40, barmode="overlay",
-                           color_discrete_map={"Low":"#00C896","Medium":"#FFD700","High":"#FF6B6B"},
-                           title="📊 ESG Score Distribution by Risk Category")
-        fig.update_layout(bargap=0.05)
-        apply_template(fig)
-        st.plotly_chart(fig, use_container_width=True)
-
-    with hc2:
-        risk_counts = df["Risk_Category"].value_counts().reset_index()
-        risk_counts.columns = ["Risk_Category","Count"]
-        fig2 = px.pie(risk_counts, values="Count", names="Risk_Category",
-                      color="Risk_Category", hole=0.6,
-                      color_discrete_map={"Low":"#00C896","Medium":"#FFD700","High":"#FF6B6B"},
-                      title="🥧 Risk Category Split")
-        fig2.update_traces(textinfo="label+percent")
-        apply_template(fig2)
-        st.plotly_chart(fig2, use_container_width=True)
-
-    # ── ESG Score vs ROI scatter (bubble) ───
-    st.markdown('<div class="section-title">🔬 ESG Score vs ROI Bubble Chart</div>', unsafe_allow_html=True)
-    bubble_df = df.dropna(subset=["ESG_Score","ROI_Percentage"]).groupby("Company_Name").agg(
-        ESG_Score=("ESG_Score","first"),
-        ROI_Percentage=("ROI_Percentage","mean"),
-        Investment=("Investment_Amount_USD","sum"),
-        Risk_Category=("Risk_Category","first"),
-        Sector=("Sector","first")
-    ).reset_index()
-
-    fig3 = px.scatter(bubble_df, x="ESG_Score", y="ROI_Percentage",
-                      size="Investment", color="Risk_Category",
-                      hover_name="Company_Name", hover_data={"Sector":True},
-                      color_discrete_map={"Low":"#00C896","Medium":"#FFD700","High":"#FF6B6B"},
-                      size_max=30, opacity=0.75,
-                      title="🔬 ESG Score vs ROI — Bubble = Investment Size")
-    fig3.add_vline(x=bubble_df["ESG_Score"].mean(), line_dash="dash", line_color="#90A4AE",
-                   annotation_text="Avg ESG", annotation_position="top right")
-    fig3.add_hline(y=bubble_df["ROI_Percentage"].mean(), line_dash="dash", line_color="#90A4AE",
-                   annotation_text="Avg ROI", annotation_position="top right")
-    apply_template(fig3)
-    st.plotly_chart(fig3, use_container_width=True)
-
-    # ── ESG by Sector violin + box ───────────
-    st.markdown('<div class="section-title">🎻 ESG Score by Sector</div>', unsafe_allow_html=True)
-    vc1, vc2 = st.columns(2)
-
-    with vc1:
-        fig4 = px.violin(df.dropna(subset=["ESG_Score","Sector"]), x="Sector", y="ESG_Score",
-                         box=True, color="Sector", color_discrete_sequence=GREEN_PALETTE,
-                         title="🎻 ESG Distribution per Sector (Violin)")
-        apply_template(fig4)
-        st.plotly_chart(fig4, use_container_width=True)
-
-    with vc2:
-        esg_sec_avg = df.groupby("Sector")["ESG_Score"].mean().reset_index().sort_values("ESG_Score", ascending=False)
-        fig5 = px.bar(esg_sec_avg, x="ESG_Score", y="Sector", orientation="h",
-                      color="ESG_Score", color_continuous_scale="Greens",
-                      text_auto=".1f", title="📊 Avg ESG Score by Sector")
-        apply_template(fig5)
-        st.plotly_chart(fig5, use_container_width=True)
-
-    # ── Decomposition Tree (ESG Risk → Sector → Region) ─
-    st.markdown('<div class="section-title">🌳 Decomposition Tree: Investment by Risk → Sector → Region</div>', unsafe_allow_html=True)
-    tree_df = df.groupby(["Risk_Category","Sector","Region"])["Investment_Amount_USD"].sum().reset_index()
-    fig6 = px.treemap(tree_df, path=["Risk_Category","Sector","Region"],
-                      values="Investment_Amount_USD",
-                      color="Investment_Amount_USD", color_continuous_scale="Greens",
-                      title="🌳 Decomposition Tree: Risk → Sector → Region → Investment")
-    fig6.update_traces(textinfo="label+value+percent entry")
-    apply_template(fig6)
-    st.plotly_chart(fig6, use_container_width=True)
-
-    # ── Top 10 companies ────────────────────
-    st.markdown('<div class="section-title">🏆 Top 10 Companies by ESG Score</div>', unsafe_allow_html=True)
-    top_esg = df.dropna(subset=["ESG_Score"]).groupby("Company_Name").agg(
-        ESG_Score=("ESG_Score","first"),
-        Investment=("Investment_Amount_USD","sum"),
-        Risk=("Risk_Category","first")
-    ).sort_values("ESG_Score", ascending=False).head(10).reset_index()
-
-    fig7 = px.bar(top_esg, x="Company_Name", y="ESG_Score",
-                  color="Risk", text="ESG_Score",
-                  color_discrete_map={"Low":"#00C896","Medium":"#FFD700","High":"#FF6B6B"},
-                  title="🏆 Top 10 Companies — ESG Score")
-    fig7.update_traces(textposition="outside")
-    apply_template(fig7)
-    st.plotly_chart(fig7, use_container_width=True)
-
-# ══════════════════════════════════════════════
-#  PAGE 3 — GEOGRAPHIC INTELLIGENCE
-# ══════════════════════════════════════════════
-elif st.session_state.page == "geo":
-    st.markdown("""
-    <div class="page-header">
-        <h1>🗺️ Geographic Intelligence</h1>
-        <p>Regional investment patterns, state-level breakdown & spatial analysis</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── Region Bar ──────────────────────────
-    st.markdown('<div class="section-title">📍 Investment by Region</div>', unsafe_allow_html=True)
-    gc1, gc2 = st.columns([3,2])
-
-    with gc1:
-        reg_inv = df.groupby(["Region","Year"])["Investment_Amount_USD"].sum().reset_index()
-        fig = px.bar(reg_inv, x="Year", y="Investment_Amount_USD", color="Region",
-                     barmode="group", color_discrete_sequence=GREEN_PALETTE,
-                     text_auto=".2s", title="📍 Regional Investment by Year")
-        apply_template(fig)
-        st.plotly_chart(fig, use_container_width=True)
-
-    with gc2:
-        reg_total = df.groupby("Region")["Investment_Amount_USD"].sum().reset_index().sort_values("Investment_Amount_USD", ascending=False)
-        fig2 = px.funnel(reg_total, x="Investment_Amount_USD", y="Region",
-                         color_discrete_sequence=GREEN_PALETTE,
-                         title="🏆 Region Investment Funnel")
-        apply_template(fig2)
-        st.plotly_chart(fig2, use_container_width=True)
-
-    # ── State level ─────────────────────────
-    st.markdown('<div class="section-title">🗺️ State-Level Investment Heatmap</div>', unsafe_allow_html=True)
-    state_inv = df.groupby("State")["Investment_Amount_USD"].sum().reset_index().sort_values("Investment_Amount_USD", ascending=False)
-
-    fig3 = px.bar(state_inv.head(20), x="State", y="Investment_Amount_USD",
-                  color="Investment_Amount_USD", color_continuous_scale="Greens",
-                  text_auto=".2s", title="🗺️ Top 20 States by Green Investment")
-    fig3.update_xaxes(tickangle=35)
-    apply_template(fig3)
-    st.plotly_chart(fig3, use_container_width=True)
-
-    # ── Sector × Region heatmap ─────────────
-    st.markdown('<div class="section-title">🔥 Sector × Region Investment Heatmap</div>', unsafe_allow_html=True)
-    heat = df.groupby(["Sector","Region"])["Investment_Amount_USD"].sum().reset_index()
-    heat_pivot = heat.pivot(index="Sector", columns="Region", values="Investment_Amount_USD").fillna(0)
-
-    fig4 = go.Figure(data=go.Heatmap(
-        z=heat_pivot.values,
-        x=heat_pivot.columns.tolist(),
-        y=heat_pivot.index.tolist(),
-        colorscale="Greens",
-        text=heat_pivot.values.round(0),
-        texttemplate="%{text:.2s}",
-        hoverongaps=False,
-    ))
-    fig4.update_layout(title="🔥 Investment Heatmap: Sector × Region",
-                       **CHART_TEMPLATE["layout"])
-    st.plotly_chart(fig4, use_container_width=True)
-
-    # ── City-level Top 15 + Quarter ─────────
-    st.markdown('<div class="section-title">🏙️ City Investment & Quarterly Patterns</div>', unsafe_allow_html=True)
-    cc1, cc2 = st.columns(2)
-
-    with cc1:
-        city_inv = df.groupby("City")["Investment_Amount_USD"].sum().reset_index().sort_values("Investment_Amount_USD",ascending=False).head(15)
-        fig5 = px.bar(city_inv, x="City", y="Investment_Amount_USD",
-                      color="Investment_Amount_USD", color_continuous_scale="Greens",
-                      text_auto=".2s", title="🏙️ Top 15 Cities by Investment")
-        fig5.update_xaxes(tickangle=35)
-        apply_template(fig5)
-        st.plotly_chart(fig5, use_container_width=True)
-
-    with cc2:
-        qtr_inv = df.groupby("Quarter")["Investment_Amount_USD"].sum().reset_index()
-        qtr_order = {"Q1":0,"Q2":1,"Q3":2,"Q4":3}
-        qtr_inv["order"] = qtr_inv["Quarter"].map(qtr_order)
-        qtr_inv = qtr_inv.sort_values("order")
-        fig6 = px.bar(qtr_inv, x="Quarter", y="Investment_Amount_USD",
-                      color="Quarter", text_auto=".2s",
-                      color_discrete_sequence=GREEN_PALETTE,
-                      title="📅 Investment by Quarter")
-        apply_template(fig6)
-        st.plotly_chart(fig6, use_container_width=True)
-
-    # ── Month heatmap ───────────────────────
-    st.markdown('<div class="section-title">📆 Monthly Investment Heatmap</div>', unsafe_allow_html=True)
-    month_order = ["January","February","March","April","May","June",
-                   "July","August","September","October","November","December"]
-    month_pivot = df.groupby(["Year","Month_Name"])["Investment_Amount_USD"].sum().reset_index()
-    month_pivot["Month_Name"] = pd.Categorical(month_pivot["Month_Name"], categories=month_order, ordered=True)
-    month_pivot = month_pivot.sort_values("Month_Name")
-    m_piv = month_pivot.pivot(index="Year", columns="Month_Name", values="Investment_Amount_USD").fillna(0)
-
-    fig7 = go.Figure(data=go.Heatmap(
-        z=m_piv.values, x=m_piv.columns.tolist(), y=m_piv.index.tolist(),
-        colorscale="Greens", texttemplate="%{z:.2s}", hoverongaps=False
-    ))
-    fig7.update_layout(title="📆 Monthly Investment Heatmap (Year × Month)", **CHART_TEMPLATE["layout"])
-    st.plotly_chart(fig7, use_container_width=True)
-
-# ══════════════════════════════════════════════
-#  PAGE 4 — CARBON REDUCTION
-# ══════════════════════════════════════════════
-elif st.session_state.page == "carbon":
-    st.markdown("""
-    <div class="page-header">
-        <h1>🌍 Carbon Reduction Analysis</h1>
-        <p>CO₂ impact tracking, sector-level emission abatement & efficiency metrics</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    total_co2  = df["CO2_Reduction_Tons"].sum()
-    avg_co2    = df["CO2_Reduction_Tons"].mean()
-    max_co2_yr = df.groupby("Year")["CO2_Reduction_Tons"].sum().idxmax()
-    eff_ratio  = df["Investment_Amount_USD"].sum() / (total_co2 + 1) 
+    ae   = df["ESG_Score"].mean()
+    lp   = round(len(df[df["Risk_Category"]=="Low"])/max(len(df),1)*100,1)
+    hp   = round(len(df[df["Risk_Category"]=="High"])/max(len(df),1)*100,1)
+    teco = (df.dropna(subset=["ESG_Score"]).groupby("Company_Name")["ESG_Score"]
+              .mean().idxmax() if len(df)>0 else "N/A")
 
     c1,c2,c3,c4 = st.columns(4)
-    for col, val, lbl in [
-        (c1, f"{total_co2/1e6:.2f}M T", "Total CO₂ Reduced"),
-        (c2, f"{avg_co2:,.0f} T",       "Avg per Project"),
-        (c3, str(max_co2_yr),           "Peak Year"),
-        (c4, f"${eff_ratio:.0f}",       "USD per Tonne CO₂"),
-    ]:
-        with col:
-            st.markdown(f"""
-            <div class="kpi-card">
-                <div class="kpi-label">{lbl}</div>
-                <div class="kpi-value">{val}</div>
-            </div>""", unsafe_allow_html=True)
+    for col,(ic,vl,lb) in zip([c1,c2,c3,c4],[
+        ("🌿",f"{ae:.1f}","Avg ESG Score"),
+        ("✅",f"{lp}%","Low-Risk Projects"),
+        ("⚠️",f"{hp}%","High-Risk Projects"),
+        ("🏅",teco[:18]+"…" if len(teco)>18 else teco,"Top ESG Company"),
+    ]):
+        with col: st.markdown(kpi(ic,vl,lb), unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    # Histogram + donut
+    st.markdown('<div class="sec-title">📊 ESG Score Distribution &amp; Risk Profile</div>', unsafe_allow_html=True)
+    h1, h2 = st.columns([3, 2])
+    with h1:
+        f = px.histogram(df.dropna(subset=["ESG_Score"]), x="ESG_Score",
+                         color="Risk_Category", nbins=45, barmode="overlay",
+                         color_discrete_map=RISK_C, opacity=0.8)
+        f.update_layout(bargap=0.04)
+        T(f, "📊 ESG Score Distribution — coloured by Risk Category", 320)
+        st.plotly_chart(f, use_container_width=True)
+    with h2:
+        rc = df["Risk_Category"].value_counts().reset_index()
+        rc.columns = ["Risk","Count"]
+        f2 = px.pie(rc, values="Count", names="Risk", hole=0.62,
+                    color="Risk", color_discrete_map=RISK_C)
+        f2.update_traces(textinfo="label+percent",
+                         marker=dict(line=dict(color=D_BG, width=2)))
+        T(f2, "🥧 Risk Category Distribution", 320)
+        st.plotly_chart(f2, use_container_width=True)
 
-    # ── CO2 trend + sector ──────────────────
-    st.markdown('<div class="section-title">📈 Carbon Reduction Trends</div>', unsafe_allow_html=True)
-    tc1, tc2 = st.columns(2)
+    # Bubble scatter
+    st.markdown('<div class="sec-title">🔬 ESG Score vs ROI — Bubble Analysis</div>', unsafe_allow_html=True)
+    bub = (df.dropna(subset=["ESG_Score","ROI_Percentage"])
+           .groupby("Company_Name")
+           .agg(ESG=("ESG_Score","first"), ROI=("ROI_Percentage","mean"),
+                Inv=("Investment_Amount_USD","sum"),
+                Risk=("Risk_Category","first"),
+                Sector=("Sector","first"))
+           .reset_index())
+    f3 = px.scatter(bub, x="ESG", y="ROI", size="Inv", color="Risk",
+                    hover_name="Company_Name",
+                    hover_data={"Sector":True,"Inv":":.2s"},
+                    color_discrete_map=RISK_C, size_max=26, opacity=0.72)
+    f3.add_vline(x=bub["ESG"].mean(), line_dash="dash", line_color=MUT,
+                 annotation_text=f"Avg ESG {bub['ESG'].mean():.1f}",
+                 annotation_font_color=MUT)
+    f3.add_hline(y=bub["ROI"].mean(), line_dash="dash", line_color=MUT,
+                 annotation_text=f"Avg ROI {bub['ROI'].mean():.1f}%",
+                 annotation_position="top right",
+                 annotation_font_color=MUT)
+    T(f3, "🔬 ESG Score vs Avg ROI  (Bubble = Investment  |  Colour = Risk)", 400)
+    st.plotly_chart(f3, use_container_width=True)
 
-    with tc1:
-        co2_yr = df.groupby("Year")["CO2_Reduction_Tons"].sum().reset_index()
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=co2_yr["Year"], y=co2_yr["CO2_Reduction_Tons"],
-                                 mode="lines+markers",
-                                 line=dict(color="#00C896", width=3),
-                                 marker=dict(size=8, color="#00FFB3"),
-                                 fill="tozeroy", fillcolor="rgba(0,200,150,0.12)",
-                                 name="CO₂ Reduced"))
-        fig.update_layout(title="📈 Annual CO₂ Reduction Trend", **CHART_TEMPLATE["layout"])
-        st.plotly_chart(fig, use_container_width=True)
+    # Violin + avg bar
+    st.markdown('<div class="sec-title">🎻 ESG Score per Sector</div>', unsafe_allow_html=True)
+    v1, v2 = st.columns(2)
+    with v1:
+        f4 = px.violin(df.dropna(subset=["ESG_Score","Sector"]),
+                       x="Sector", y="ESG_Score", box=True,
+                       color="Sector", color_discrete_sequence=PAL, points=False)
+        T(f4, "🎻 ESG Violin — per Sector", 340)
+        st.plotly_chart(f4, use_container_width=True)
+    with v2:
+        es = (df.groupby("Sector")["ESG_Score"].mean()
+              .reset_index().sort_values("ESG_Score", ascending=False))
+        f5 = px.bar(es, y="Sector", x="ESG_Score", orientation="h",
+                    color="ESG_Score", color_continuous_scale="Greens",
+                    text_auto=".1f")
+        f5.update_traces(textposition="outside", textfont_color=TXT)
+        T(f5, "📊 Avg ESG Score by Sector", 340)
+        st.plotly_chart(f5, use_container_width=True)
 
-    with tc2:
-        co2_sec = df.groupby("Sector")["CO2_Reduction_Tons"].sum().reset_index().sort_values("CO2_Reduction_Tons",ascending=True)
-        fig2 = px.bar(co2_sec, x="CO2_Reduction_Tons", y="Sector", orientation="h",
-                      color="CO2_Reduction_Tons", color_continuous_scale="Greens",
-                      text_auto=".2s", title="🌱 CO₂ Reduced by Sector")
-        apply_template(fig2)
-        st.plotly_chart(fig2, use_container_width=True)
-
-    # ── CO2 Year × Sector heatmap ───────────
-    st.markdown('<div class="section-title">🔥 Carbon Heatmap: Year × Sector</div>', unsafe_allow_html=True)
-    co2_pivot = df.groupby(["Year","Sector"])["CO2_Reduction_Tons"].sum().reset_index()
-    co2_piv = co2_pivot.pivot(index="Sector", columns="Year", values="CO2_Reduction_Tons").fillna(0)
-    fig3 = go.Figure(go.Heatmap(
-        z=co2_piv.values, x=co2_piv.columns.tolist(), y=co2_piv.index.tolist(),
-        colorscale="Greens", texttemplate="%{z:.2s}"
-    ))
-    fig3.update_layout(title="🔥 Carbon Reduction Heatmap (Sector × Year)", **CHART_TEMPLATE["layout"])
-    st.plotly_chart(fig3, use_container_width=True)
-
-    # ── CO2 per $M invested (efficiency) ────
-    st.markdown('<div class="section-title">⚡ Carbon Efficiency: CO₂ per $M Invested</div>', unsafe_allow_html=True)
-    eff_df = df.groupby("Sector").agg(
-        CO2=("CO2_Reduction_Tons","sum"),
-        Inv=("Investment_Amount_USD","sum")
-    ).reset_index()
-    eff_df["CO2_per_M"] = eff_df["CO2"] / (eff_df["Inv"] / 1e6)
-    fig4 = px.bar(eff_df.sort_values("CO2_per_M",ascending=False),
-                  x="Sector", y="CO2_per_M",
-                  color="CO2_per_M", color_continuous_scale="Greens",
-                  text_auto=".1f",
-                  title="⚡ CO₂ Reduced per $1M Invested (Sector Efficiency)")
-    apply_template(fig4)
-    st.plotly_chart(fig4, use_container_width=True)
-
-    # ── Region + CO2 sunburst ───────────────
-    st.markdown('<div class="section-title">☀️ Carbon Sunburst: Region → Sector</div>', unsafe_allow_html=True)
-    sun_df = df.groupby(["Region","Sector"])["CO2_Reduction_Tons"].sum().reset_index()
-    fig5 = px.sunburst(sun_df, path=["Region","Sector"], values="CO2_Reduction_Tons",
-                       color="CO2_Reduction_Tons", color_continuous_scale="Greens",
-                       title="☀️ CO₂ Sunburst: Region → Sector")
-    apply_template(fig5)
-    st.plotly_chart(fig5, use_container_width=True)
-
-    st.markdown(f"""
-    <div class="insight-box">
-    💡 <b>Carbon Insight:</b> The portfolio has collectively avoided <b>{total_co2/1e6:.2f} Million Tonnes</b> of CO₂.
-    Cost efficiency stands at <b>${eff_ratio:.0f} per tonne</b> — compared to the global carbon credit average of ~$50–80/tonne,
-    HDFC's green portfolio shows <b>strong environmental leverage</b>.
-    </div>
-    """, unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════
-#  PAGE 5 — ROI & RETURNS
-# ══════════════════════════════════════════════
-elif st.session_state.page == "roi":
-    st.markdown("""
-    <div class="page-header">
-        <h1>💰 ROI & Returns Analysis</h1>
-        <p>Return on investment deep-dive, risk-adjusted performance & portfolio optimization signals</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    avg_roi  = df["ROI_Percentage"].mean()
-    med_roi  = df["ROI_Percentage"].median()
-    max_roi  = df["ROI_Percentage"].max()
-    roi_std  = df["ROI_Percentage"].std()
-    sharpe   = avg_roi / (roi_std + 0.001)
-
-    c1,c2,c3,c4,c5 = st.columns(5)
-    for col, val, lbl in [
-        (c1, f"{avg_roi:.2f}%", "Avg ROI"),
-        (c2, f"{med_roi:.2f}%", "Median ROI"),
-        (c3, f"{max_roi:.2f}%", "Max ROI"),
-        (c4, f"{roi_std:.2f}%", "Volatility (σ)"),
-        (c5, f"{sharpe:.2f}",   "Sharpe-Like Ratio"),
-    ]:
-        with col:
-            st.markdown(f"""
-            <div class="kpi-card">
-                <div class="kpi-label">{lbl}</div>
-                <div class="kpi-value">{val}</div>
-            </div>""", unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ── ROI trend + sector box ───────────────
-    st.markdown('<div class="section-title">📈 ROI Trends & Distribution</div>', unsafe_allow_html=True)
-    rc1, rc2 = st.columns(2)
-
-    with rc1:
-        roi_yr = df.groupby("Year")["ROI_Percentage"].mean().reset_index()
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=roi_yr["Year"], y=roi_yr["ROI_Percentage"],
-                                 mode="lines+markers",
-                                 line=dict(color="#FFD700", width=3),
-                                 marker=dict(size=8, color="#FFD700"),
-                                 fill="tozeroy", fillcolor="rgba(255,215,0,0.1)",
-                                 name="Avg ROI"))
-        fig.update_layout(title="📈 Average ROI Trend by Year", **CHART_TEMPLATE["layout"])
-        st.plotly_chart(fig, use_container_width=True)
-
-    with rc2:
-        fig2 = px.box(df.dropna(subset=["ROI_Percentage","Sector"]),
-                      x="Sector", y="ROI_Percentage",
-                      color="Sector", color_discrete_sequence=GREEN_PALETTE,
-                      title="📦 ROI Distribution by Sector (Box Plot)")
-        apply_template(fig2)
-        st.plotly_chart(fig2, use_container_width=True)
-
-    # ── ROI histogram + ROI × ESG ───────────
-    st.markdown('<div class="section-title">🔍 ROI Deep Dive</div>', unsafe_allow_html=True)
-    rd1, rd2 = st.columns(2)
-
-    with rd1:
-        fig3 = px.histogram(df.dropna(subset=["ROI_Percentage"]), x="ROI_Percentage",
-                            color="Sector", nbins=50, barmode="overlay",
-                            color_discrete_sequence=GREEN_PALETTE,
-                            title="📊 ROI Distribution Histogram")
-        apply_template(fig3)
-        st.plotly_chart(fig3, use_container_width=True)
-
-    with rd2:
-        roi_risk = df.groupby("Risk_Category")["ROI_Percentage"].mean().reset_index()
-        fig4 = px.bar(roi_risk, x="Risk_Category", y="ROI_Percentage",
-                      color="Risk_Category",
-                      color_discrete_map={"Low":"#00C896","Medium":"#FFD700","High":"#FF6B6B"},
-                      text_auto=".2f",
-                      title="⚠️ Avg ROI by ESG Risk Category")
-        apply_template(fig4)
-        st.plotly_chart(fig4, use_container_width=True)
-
-    # ── Investment vs ROI scatter ────────────
-    st.markdown('<div class="section-title">💹 Investment Size vs ROI</div>', unsafe_allow_html=True)
-    scatter_df = df.dropna(subset=["Investment_Amount_USD","ROI_Percentage","ESG_Score"])
-    fig5 = px.scatter(scatter_df.sample(min(5000,len(scatter_df))),
-                      x="Investment_Amount_USD", y="ROI_Percentage",
-                      color="Sector", size="ESG_Score", opacity=0.65,
-                      hover_data=["Company_Name","State","Year"],
-                      color_discrete_sequence=GREEN_PALETTE,
-                      size_max=20,
-                      title="💹 Investment Amount vs ROI (Size = ESG Score)")
-    fig5.update_xaxes(type="log", title="Investment (USD, log scale)")
-    apply_template(fig5)
-    st.plotly_chart(fig5, use_container_width=True)
-
-    # ── ROI by Region ────────────────────────
-    st.markdown('<div class="section-title">📍 ROI by Region & Quarter</div>', unsafe_allow_html=True)
-    rrc1, rrc2 = st.columns(2)
-
-    with rrc1:
-        roi_reg = df.groupby("Region")["ROI_Percentage"].mean().reset_index().sort_values("ROI_Percentage",ascending=False)
-        fig6 = px.bar(roi_reg, x="Region", y="ROI_Percentage",
-                      color="ROI_Percentage", color_continuous_scale="Teal",
-                      text_auto=".1f", title="📍 Avg ROI by Region")
-        apply_template(fig6)
-        st.plotly_chart(fig6, use_container_width=True)
-
-    with rrc2:
-        qtr_order = {"Q1":0,"Q2":1,"Q3":2,"Q4":3}
-        roi_q = df.groupby("Quarter")["ROI_Percentage"].mean().reset_index()
-        roi_q["ord"] = roi_q["Quarter"].map(qtr_order)
-        roi_q = roi_q.sort_values("ord")
-        fig7 = px.line(roi_q, x="Quarter", y="ROI_Percentage",
-                       markers=True, line_shape="spline",
-                       color_discrete_sequence=["#FFD700"],
-                       title="📅 Avg ROI by Quarter")
-        apply_template(fig7)
-        st.plotly_chart(fig7, use_container_width=True)
-
-# ══════════════════════════════════════════════
-#  PAGE 6 — SECTOR DEEP DIVE
-# ══════════════════════════════════════════════
-elif st.session_state.page == "sector":
-    st.markdown("""
-    <div class="page-header">
-        <h1>🔍 Sector Deep Dive</h1>
-        <p>Granular sector analysis — investment, performance, carbon & ESG metrics</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── Sector selector ──────────────────────
-    available_sectors = sorted(df["Sector"].dropna().unique().tolist())
-    chosen_sector = st.selectbox("🏭 Select Sector for Deep Dive", available_sectors)
-    sec_df = df[df["Sector"] == chosen_sector]
-
-    s_inv  = sec_df["Investment_Amount_USD"].sum() / 1e9
-    s_co2  = sec_df["CO2_Reduction_Tons"].sum() / 1e6
-    s_roi  = sec_df["ROI_Percentage"].mean()
-    s_esg  = sec_df["ESG_Score"].mean()
-    s_proj = sec_df["Project_ID"].nunique()
-
-    c1,c2,c3,c4,c5 = st.columns(5)
-    for col, val, lbl in [
-        (c1, f"${s_inv:.2f}B",  f"{chosen_sector} Investment"),
-        (c2, f"{s_co2:.2f}M T", "CO₂ Reduced"),
-        (c3, f"{s_roi:.2f}%",   "Avg ROI"),
-        (c4, f"{s_esg:.1f}",    "Avg ESG Score"),
-        (c5, f"{s_proj:,}",     "Projects"),
-    ]:
-        with col:
-            st.markdown(f"""
-            <div class="kpi-card">
-                <div class="kpi-label">{lbl}</div>
-                <div class="kpi-value">{val}</div>
-            </div>""", unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ── Sector description ───────────────────
-    sec_desc = sector_df[sector_df["Sector"] == chosen_sector]["Description"].values
-    if len(sec_desc):
-        st.info(f"📋 **{chosen_sector}**: {sec_desc[0]}")
-
-    # ── Trend charts ─────────────────────────
-    st.markdown('<div class="section-title">📈 Investment & Carbon Trends</div>', unsafe_allow_html=True)
-    sc1, sc2 = st.columns(2)
-
-    with sc1:
-        yr_data = sec_df.groupby("Year").agg(
-            Investment=("Investment_Amount_USD","sum"),
-            CO2=("CO2_Reduction_Tons","sum"),
-            ROI=("ROI_Percentage","mean")
-        ).reset_index()
-
-        fig = make_subplots(specs=[[{"secondary_y": True}]])
-        fig.add_trace(go.Bar(x=yr_data["Year"], y=yr_data["Investment"],
-                             name="Investment (USD)", marker_color="#00C896"), secondary_y=False)
-        fig.add_trace(go.Scatter(x=yr_data["Year"], y=yr_data["ROI"],
-                                 mode="lines+markers", name="ROI %",
-                                 line=dict(color="#FFD700",width=3),
-                                 marker=dict(size=7)), secondary_y=True)
-        fig.update_layout(title=f"📈 {chosen_sector}: Investment & ROI by Year", **CHART_TEMPLATE["layout"])
-        fig.update_yaxes(title_text="Investment (USD)", secondary_y=False)
-        fig.update_yaxes(title_text="ROI %", secondary_y=True)
-        st.plotly_chart(fig, use_container_width=True)
-
-    with sc2:
-        co2_yr = sec_df.groupby("Year")["CO2_Reduction_Tons"].sum().reset_index()
-        fig2 = px.area(co2_yr, x="Year", y="CO2_Reduction_Tons",
-                       color_discrete_sequence=["#00C896"],
-                       title=f"🌍 {chosen_sector}: CO₂ Reduction Trend")
-        fig2.update_traces(fill="tozeroy", fillcolor="rgba(0,200,150,0.15)")
-        apply_template(fig2)
-        st.plotly_chart(fig2, use_container_width=True)
-
-    # ── State + Risk breakdown ───────────────
-    st.markdown('<div class="section-title">🗺️ Geographic & Risk Breakdown</div>', unsafe_allow_html=True)
-    scc1, scc2 = st.columns(2)
-
-    with scc1:
-        st_data = sec_df.groupby("State")["Investment_Amount_USD"].sum().reset_index().sort_values("Investment_Amount_USD",ascending=False).head(12)
-        fig3 = px.bar(st_data, x="State", y="Investment_Amount_USD",
-                      color="Investment_Amount_USD", color_continuous_scale="Greens",
-                      text_auto=".2s", title=f"🗺️ {chosen_sector}: Top States")
-        fig3.update_xaxes(tickangle=35)
-        apply_template(fig3)
-        st.plotly_chart(fig3, use_container_width=True)
-
-    with scc2:
-        risk_data = sec_df["Risk_Category"].value_counts().reset_index()
-        risk_data.columns = ["Risk","Count"]
-        fig4 = px.pie(risk_data, values="Count", names="Risk", hole=0.55,
-                      color="Risk",
-                      color_discrete_map={"Low":"#00C896","Medium":"#FFD700","High":"#FF6B6B"},
-                      title=f"⚠️ {chosen_sector}: ESG Risk Split")
-        apply_template(fig4)
-        st.plotly_chart(fig4, use_container_width=True)
-
-    # ── All sectors comparison radar ─────────
-    st.markdown('<div class="section-title">🕸️ All Sectors Comparison Radar</div>', unsafe_allow_html=True)
-    radar_df = df.groupby("Sector").agg(
-        ROI=("ROI_Percentage","mean"),
-        ESG=("ESG_Score","mean"),
-        CO2=("CO2_Reduction_Tons","mean"),
-        Inv=("Investment_Amount_USD","mean"),
-    ).reset_index()
-
-    # Normalize 0-100
-    for col in ["ROI","ESG","CO2","Inv"]:
-        mn, mx = radar_df[col].min(), radar_df[col].max()
-        radar_df[col+"_n"] = ((radar_df[col]-mn)/(mx-mn+1e-9))*100
-
-    fig5 = go.Figure()
-    for i, row in radar_df.iterrows():
-        fig5.add_trace(go.Scatterpolar(
-            r=[row["ROI_n"], row["ESG_n"], row["CO2_n"], row["Inv_n"], row["ROI_n"]],
-            theta=["ROI","ESG Score","CO₂ Reduction","Investment","ROI"],
-            name=row["Sector"],
-            mode="lines+markers",
-            line=dict(color=GREEN_PALETTE[i % len(GREEN_PALETTE)], width=2),
-        ))
-    fig5.update_layout(
-        polar=dict(bgcolor="#111827",
-                   radialaxis=dict(visible=True, gridcolor="rgba(255,255,255,0.1)",color="#90A4AE"),
-                   angularaxis=dict(gridcolor="rgba(255,255,255,0.1)",color="#90A4AE")),
-        title="🕸️ Sector Comparison Radar (Normalized)",
-        **CHART_TEMPLATE["layout"]
+    # Enhanced Decomposition Treemap
+    st.markdown('<div class="sec-title">🌳 Decomposition Tree — Investment: Risk → Sector → Region → State</div>', unsafe_allow_html=True)
+    tree = df.groupby(["Risk_Category","Sector","Region","State"])["Investment_Amount_USD"].sum().reset_index()
+    f6 = px.treemap(
+        tree,
+        path=[px.Constant("🌏 ALL INDIA"), "Risk_Category", "Sector", "Region", "State"],
+        values="Investment_Amount_USD",
+        color="Investment_Amount_USD",
+        color_continuous_scale=[[0,"#0A1623"],[0.25,"#003D2A"],[0.6,GRN],[1.0,GRN2]],
+        hover_data={"Investment_Amount_USD":":.2s"},
+        custom_data=["Investment_Amount_USD"],
     )
-    st.plotly_chart(fig5, use_container_width=True)
+    f6.update_traces(
+        textinfo="label+value+percent root",
+        textfont=dict(family="Space Grotesk,sans-serif", size=11, color="#FFFFFF"),
+        marker=dict(line=dict(color=D_BG2, width=1.8),
+                    cornerradius=5),
+        insidetextanchor="middle",
+        hovertemplate="<b>%{label}</b><br>Investment: $%{value:,.0f}<extra></extra>",
+    )
+    f6.update_layout(
+        paper_bgcolor=D_BG2, margin=dict(l=6,r=6,t=6,b=6), height=530,
+        font=dict(color=TXT, family="Plus Jakarta Sans,sans-serif"),
+        coloraxis_colorbar=dict(tickfont=dict(color=MUT),
+                                title=dict(text="Investment (USD)", font=dict(color=MUT))),
+    )
+    st.plotly_chart(f6, use_container_width=True)
 
-    # ── Waterfall: Investment progression ────
-    st.markdown('<div class="section-title">🌊 Investment Waterfall by Year</div>', unsafe_allow_html=True)
-    wf_data = sec_df.groupby("Year")["Investment_Amount_USD"].sum().reset_index().sort_values("Year")
-    wf_data["delta"] = wf_data["Investment_Amount_USD"].diff().fillna(wf_data["Investment_Amount_USD"])
+    # Top 15 ESG
+    st.markdown('<div class="sec-title">🏆 Top 15 Companies by ESG Score</div>', unsafe_allow_html=True)
+    top = (df.dropna(subset=["ESG_Score"])
+           .groupby("Company_Name")
+           .agg(ESG=("ESG_Score","first"), Inv=("Investment_Amount_USD","sum"),
+                Risk=("Risk_Category","first"))
+           .sort_values("ESG", ascending=False).head(15).reset_index())
+    f7 = px.bar(top, x="Company_Name", y="ESG", color="Risk",
+                text="ESG", color_discrete_map=RISK_C)
+    f7.update_traces(textposition="outside", textfont_color=TXT,
+                     texttemplate="%{text:.1f}")
+    T(f7, "🏆 Top 15 Companies by ESG Score", 360)
+    st.plotly_chart(f7, use_container_width=True)
 
-    fig6 = go.Figure(go.Waterfall(
-        x=wf_data["Year"].astype(str).tolist(),
-        y=wf_data["delta"].tolist(),
-        measure=["absolute"] + ["relative"]*(len(wf_data)-1),
-        connector=dict(line=dict(color="#90A4AE")),
-        increasing=dict(marker_color="#00C896"),
-        decreasing=dict(marker_color="#FF6B6B"),
-        totals=dict(marker_color="#FFD700"),
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  P3 · GEOGRAPHIC INTELLIGENCE
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.page == "geo":
+    st.markdown("""<div class="pg-header"><div class="pg-icon">🗺️</div>
+    <div><div class="pg-title">Geographic Intelligence</div>
+    <div class="pg-sub">India investment map · Regional patterns · State-level spatial analysis</div>
+    </div></div>""", unsafe_allow_html=True)
+
+    # India Bubble Map
+    st.markdown('<div class="sec-title">🗺️ India Green Investment — Azure Bubble Map</div>', unsafe_allow_html=True)
+    mp = (df.dropna(subset=["lat","lon"])
+          .groupby(["State","lat","lon","Region"])
+          .agg(Investment=("Investment_Amount_USD","sum"),
+               Projects=("Project_ID","nunique"),
+               Avg_ROI=("ROI_Percentage","mean"),
+               CO2=("CO2_Reduction_Tons","sum"))
+          .reset_index())
+
+    fm = px.scatter_geo(mp, lat="lat", lon="lon",
+                        size="Investment", color="Region",
+                        hover_name="State",
+                        hover_data={"Investment":":.2s","Projects":True,
+                                    "Avg_ROI":":.1f","CO2":":.0f",
+                                    "lat":False,"lon":False},
+                        color_discrete_sequence=[GRN,GRN2,GOLD,BLUE,"#CE93D8"],
+                        size_max=50, scope="asia", projection="natural earth")
+    fm.update_geos(
+        visible=True, resolution=50,
+        showcountries=True,  countrycolor="rgba(130,180,255,0.25)",
+        showcoastlines=True, coastlinecolor="rgba(130,180,255,0.25)",
+        showland=True,       landcolor="#0D2137",
+        showocean=True,      oceancolor="#071525",
+        showsubunits=True,   subunitcolor="rgba(100,160,255,0.15)",
+        showrivers=True,     rivercolor="rgba(66,165,245,0.3)",
+        showlakes=True,      lakecolor="#071525",
+        showframe=False, bgcolor=D_BG2,
+        center=dict(lat=22, lon=80),
+        lataxis_range=[6, 38], lonaxis_range=[65, 100],
+    )
+    fm.update_layout(
+        paper_bgcolor=D_BG2, geo_bgcolor=D_BG2,
+        font=dict(family="Plus Jakarta Sans,sans-serif", color=TXT, size=11),
+        title=dict(
+            text="🗺️ Green Investment Bubble Map — India  (Bubble = Investment Size  |  Colour = Region)",
+            font=dict(family="Space Grotesk,sans-serif", color=TXT, size=13), x=0.02),
+        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color=MUT, size=11)),
+        margin=dict(l=8,r=8,t=48,b=8), height=520,
+    )
+    st.plotly_chart(fm, use_container_width=True)
+
+    # Region grouped + Funnel
+    st.markdown('<div class="sec-title">📍 Regional Investment Breakdown</div>', unsafe_allow_html=True)
+    g1, g2 = st.columns([3, 2])
+    with g1:
+        ri = df.groupby(["Region","Year"])["Investment_Amount_USD"].sum().reset_index()
+        f = px.bar(ri, x="Year", y="Investment_Amount_USD", color="Region",
+                   barmode="group", color_discrete_sequence=PAL, text_auto=".2s")
+        f.update_traces(textposition="outside", textfont_color=TXT)
+        T(f, "📍 Regional Investment by Year", 330)
+        st.plotly_chart(f, use_container_width=True)
+    with g2:
+        rt = df.groupby("Region")["Investment_Amount_USD"].sum().reset_index().sort_values("Investment_Amount_USD",ascending=False)
+        f2 = px.funnel(rt, x="Investment_Amount_USD", y="Region",
+                       color_discrete_sequence=PAL)
+        T(f2, "🏆 Region Investment Funnel", 330)
+        st.plotly_chart(f2, use_container_width=True)
+
+    # Top 20 states bar
+    st.markdown('<div class="sec-title">🗺️ Top 20 States by Green Investment</div>', unsafe_allow_html=True)
+    si = df.groupby("State")["Investment_Amount_USD"].sum().reset_index().sort_values("Investment_Amount_USD",ascending=False).head(20)
+    f3 = px.bar(si, x="State", y="Investment_Amount_USD",
+                color="Investment_Amount_USD", color_continuous_scale="Greens",
+                text_auto=".2s")
+    f3.update_xaxes(tickangle=38)
+    f3.update_traces(textposition="outside", textfont_color=TXT)
+    T(f3, "🗺️ Top 20 States — Total Green Investment (USD)", 360)
+    st.plotly_chart(f3, use_container_width=True)
+
+    # Heatmaps
+    st.markdown('<div class="sec-title">🔥 Investment Heatmaps</div>', unsafe_allow_html=True)
+    hm1, hm2 = st.columns(2)
+    with hm1:
+        hp_df = df.groupby(["Sector","Region"])["Investment_Amount_USD"].sum().reset_index()
+        pv = hp_df.pivot(index="Sector", columns="Region", values="Investment_Amount_USD").fillna(0)
+        fh1 = go.Figure(go.Heatmap(
+            z=pv.values, x=pv.columns.tolist(), y=pv.index.tolist(),
+            colorscale=[[0,D_BG],[0.4,"#00563F"],[1.0,GRN2]],
+            text=pv.values, texttemplate="%{text:.2s}", hoverongaps=False,
+            colorbar=dict(tickfont=dict(color=MUT)),
+        ))
+        fh1.update_layout(
+            paper_bgcolor=D_BG, plot_bgcolor=D_BG,
+            font=dict(family="Plus Jakarta Sans,sans-serif", color=TXT, size=11),
+            title=dict(text="🔥 Sector × Region Heatmap",
+                       font=dict(family="Space Grotesk,sans-serif",color=TXT,size=13),x=0.02),
+            xaxis=dict(tickfont=dict(color=MUT)),
+            yaxis=dict(tickfont=dict(color=MUT)),
+            margin=dict(l=12,r=12,t=48,b=12), height=340,
+        )
+        st.plotly_chart(fh1, use_container_width=True)
+    with hm2:
+        mo = ["January","February","March","April","May","June",
+              "July","August","September","October","November","December"]
+        mp2 = df.groupby(["Year","Month_Name"])["Investment_Amount_USD"].sum().reset_index()
+        mp2["Month_Name"] = pd.Categorical(mp2["Month_Name"], categories=mo, ordered=True)
+        mp2 = mp2.sort_values("Month_Name")
+        pv2 = mp2.pivot(index="Year", columns="Month_Name",
+                        values="Investment_Amount_USD").fillna(0)
+        fh2 = go.Figure(go.Heatmap(
+            z=pv2.values, x=pv2.columns.tolist(),
+            y=pv2.index.astype(str).tolist(),
+            colorscale=[[0,D_BG],[0.4,"#00563F"],[1.0,GRN2]],
+            texttemplate="%{z:.2s}", hoverongaps=False,
+            colorbar=dict(tickfont=dict(color=MUT)),
+        ))
+        fh2.update_layout(
+            paper_bgcolor=D_BG, plot_bgcolor=D_BG,
+            font=dict(family="Plus Jakarta Sans,sans-serif", color=TXT, size=11),
+            title=dict(text="📆 Monthly Investment Heatmap (Year × Month)",
+                       font=dict(family="Space Grotesk,sans-serif",color=TXT,size=13),x=0.02),
+            xaxis=dict(tickfont=dict(color=MUT,size=9), tickangle=38),
+            yaxis=dict(tickfont=dict(color=MUT)),
+            margin=dict(l=12,r=12,t=48,b=12), height=340,
+        )
+        st.plotly_chart(fh2, use_container_width=True)
+
+    # City + Sunburst
+    st.markdown('<div class="sec-title">🏙️ City Analysis &amp; Regional Sunburst</div>', unsafe_allow_html=True)
+    ca, cb = st.columns(2)
+    with ca:
+        ci = df.groupby("City")["Investment_Amount_USD"].sum().reset_index().sort_values("Investment_Amount_USD",ascending=False).head(15)
+        f5 = px.bar(ci, y="City", x="Investment_Amount_USD", orientation="h",
+                    color="Investment_Amount_USD", color_continuous_scale="Greens",
+                    text_auto=".2s")
+        f5.update_traces(textposition="outside", textfont_color=TXT)
+        T(f5, "🏙️ Top 15 Cities by Investment", 400)
+        st.plotly_chart(f5, use_container_width=True)
+    with cb:
+        sn = df.groupby(["Region","Sector"])["Investment_Amount_USD"].sum().reset_index()
+        f6 = px.sunburst(sn, path=["Region","Sector"], values="Investment_Amount_USD",
+                         color="Investment_Amount_USD",
+                         color_continuous_scale=[[0,D_BG],[0.3,"#00563F"],[1.0,GRN2]])
+        f6.update_traces(textfont=dict(family="Space Grotesk,sans-serif",
+                                       size=11, color="#FFFFFF"),
+                         insidetextorientation="radial")
+        f6.update_layout(
+            paper_bgcolor=D_BG,
+            font=dict(color=TXT, family="Plus Jakarta Sans,sans-serif"),
+            coloraxis_colorbar=dict(tickfont=dict(color=MUT)),
+            title=dict(text="☀️ Investment Sunburst: Region → Sector",
+                       font=dict(family="Space Grotesk,sans-serif",color=TXT,size=13),x=0.02),
+            margin=dict(l=8,r=8,t=48,b=8), height=400,
+        )
+        st.plotly_chart(f6, use_container_width=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  P4 · CARBON REDUCTION
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.page == "carbon":
+    st.markdown("""<div class="pg-header"><div class="pg-icon">🌍</div>
+    <div><div class="pg-title">Carbon Reduction Analysis</div>
+    <div class="pg-sub">CO₂ impact tracking · Sector-level emission abatement · Efficiency metrics</div>
+    </div></div>""", unsafe_allow_html=True)
+
+    tc  = df["CO2_Reduction_Tons"].sum()
+    ac  = df["CO2_Reduction_Tons"].mean()
+    ef  = df["Investment_Amount_USD"].sum() / max(tc, 1)
+    py  = df.groupby("Year")["CO2_Reduction_Tons"].sum().idxmax() if len(df)>0 else "N/A"
+    bs  = df.groupby("Sector")["CO2_Reduction_Tons"].sum().idxmax() if len(df)>0 else "N/A"
+
+    c1,c2,c3,c4,c5 = st.columns(5)
+    for col,(ic,vl,lb) in zip([c1,c2,c3,c4,c5],[
+        ("🌍",f"{tc/1e6:.2f}M T","Total CO₂ Reduced"),
+        ("📊",f"{ac:,.0f} T","Avg CO₂ / Project"),
+        ("📅",str(py),"Peak Year"),
+        ("💵",f"${ef:.0f}","USD / Tonne CO₂"),
+        ("🌱",bs,"Top CO₂ Sector"),
+    ]):
+        with col: st.markdown(kpi(ic,vl,lb), unsafe_allow_html=True)
+
+    # Trend + sector bar
+    st.markdown('<div class="sec-title">📈 Carbon Reduction Trends</div>', unsafe_allow_html=True)
+    t1, t2 = st.columns(2)
+    with t1:
+        cy = df.groupby("Year")["CO2_Reduction_Tons"].sum().reset_index()
+        f = go.Figure(go.Scatter(
+            x=cy["Year"], y=cy["CO2_Reduction_Tons"],
+            mode="lines+markers", name="CO₂ Reduced",
+            line=dict(color=GRN, width=3),
+            marker=dict(size=8,color=GRN2,line=dict(color=D_BG,width=2)),
+            fill="tozeroy", fillcolor="rgba(32,196,138,0.10)"))
+        T(f, "📈 Annual CO₂ Reduction Trend", 320)
+        st.plotly_chart(f, use_container_width=True)
+    with t2:
+        cs = df.groupby("Sector")["CO2_Reduction_Tons"].sum().reset_index().sort_values("CO2_Reduction_Tons")
+        f2 = px.bar(cs, x="CO2_Reduction_Tons", y="Sector", orientation="h",
+                    color="CO2_Reduction_Tons", color_continuous_scale="Greens",
+                    text_auto=".2s")
+        f2.update_traces(textposition="outside", textfont_color=TXT)
+        T(f2, "🌱 CO₂ Reduced by Sector (Total Tonnes)", 320)
+        st.plotly_chart(f2, use_container_width=True)
+
+    # Heatmap
+    st.markdown('<div class="sec-title">🔥 Carbon Heatmap — Sector × Year</div>', unsafe_allow_html=True)
+    cp = df.groupby(["Year","Sector"])["CO2_Reduction_Tons"].sum().reset_index()
+    pv = cp.pivot(index="Sector", columns="Year",
+                  values="CO2_Reduction_Tons").fillna(0)
+    f3 = go.Figure(go.Heatmap(
+        z=pv.values, x=pv.columns.astype(str).tolist(), y=pv.index.tolist(),
+        colorscale=[[0,D_BG],[0.3,"#004D40"],[0.7,GRN],[1.0,GRN2]],
+        text=pv.values, texttemplate="%{text:.2s}", hoverongaps=False,
+        colorbar=dict(tickfont=dict(color=MUT)),
     ))
-    fig6.update_layout(title=f"🌊 {chosen_sector}: Investment Waterfall (Year-over-Year)",
-                       **CHART_TEMPLATE["layout"])
-    st.plotly_chart(fig6, use_container_width=True)
+    f3.update_layout(
+        paper_bgcolor=D_BG, plot_bgcolor=D_BG,
+        font=dict(family="Plus Jakarta Sans,sans-serif", color=TXT, size=11),
+        title=dict(text="🔥 CO₂ Reduction Heatmap — Sector × Year",
+                   font=dict(family="Space Grotesk,sans-serif",color=TXT,size=13),x=0.02),
+        xaxis=dict(tickfont=dict(color=MUT)),
+        yaxis=dict(tickfont=dict(color=MUT)),
+        margin=dict(l=12,r=12,t=48,b=12), height=340,
+    )
+    st.plotly_chart(f3, use_container_width=True)
 
-# ─────────────────────────────────────────────
-#  FOOTER
-# ─────────────────────────────────────────────
+    # Efficiency + Sunburst
+    st.markdown('<div class="sec-title">⚡ Carbon Efficiency &amp; Sunburst</div>', unsafe_allow_html=True)
+    e1, e2 = st.columns(2)
+    with e1:
+        ed = df.groupby("Sector").agg(
+            CO2=("CO2_Reduction_Tons","sum"),
+            Inv=("Investment_Amount_USD","sum")).reset_index()
+        ed["CO2_per_M"] = ed["CO2"] / (ed["Inv"]/1e6)
+        f4 = px.bar(ed.sort_values("CO2_per_M",ascending=False),
+                    x="Sector", y="CO2_per_M",
+                    color="CO2_per_M", color_continuous_scale="Greens",
+                    text_auto=".1f")
+        f4.update_traces(textposition="outside", textfont_color=TXT)
+        T(f4, "⚡ CO₂ Reduced per $1M Invested — Sector Efficiency", 340)
+        st.plotly_chart(f4, use_container_width=True)
+    with e2:
+        sn = df.groupby(["Region","Sector"])["CO2_Reduction_Tons"].sum().reset_index()
+        f5 = px.sunburst(sn, path=["Region","Sector"],
+                         values="CO2_Reduction_Tons",
+                         color="CO2_Reduction_Tons",
+                         color_continuous_scale=[[0,D_BG],[0.4,"#004D40"],[1.0,GRN2]])
+        f5.update_traces(textfont=dict(family="Space Grotesk,sans-serif",size=11,color="#FFFFFF"),
+                         insidetextorientation="radial")
+        f5.update_layout(
+            paper_bgcolor=D_BG, font=dict(color=TXT),
+            coloraxis_colorbar=dict(tickfont=dict(color=MUT)),
+            title=dict(text="☀️ CO₂ Sunburst — Region → Sector",
+                       font=dict(family="Space Grotesk,sans-serif",color=TXT,size=13),x=0.02),
+            margin=dict(l=8,r=8,t=48,b=8), height=340,
+        )
+        st.plotly_chart(f5, use_container_width=True)
+
+    # Region × Year line
+    st.markdown('<div class="sec-title">📍 Region CO₂ Trend by Year</div>', unsafe_allow_html=True)
+    rc = df.groupby(["Year","Region"])["CO2_Reduction_Tons"].sum().reset_index()
+    f6 = px.line(rc, x="Year", y="CO2_Reduction_Tons", color="Region",
+                 markers=True, line_shape="spline",
+                 color_discrete_sequence=PAL)
+    f6.update_traces(line=dict(width=2.5), marker=dict(size=7))
+    T(f6, "📍 CO₂ Reduction Trend by Region — Year-on-Year", 320)
+    st.plotly_chart(f6, use_container_width=True)
+
+    st.markdown(f"""<div class="insight">
+    💡 <b>Carbon Insight:</b> Total CO₂ avoided = <b>{tc/1e6:.2f}M Tonnes</b>.
+    At global carbon price ~$65/tonne, this represents a carbon credit value of
+    <b>${tc*65/1e9:.2f}B</b>.
+    Cost efficiency: <b>${ef:.0f}</b> per tonne CO₂ — strong environmental leverage.
+    <b>{bs}</b> leads in absolute carbon abatement.
+    </div>""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  P5 · ROI & RETURNS
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.page == "roi":
+    st.markdown("""<div class="pg-header"><div class="pg-icon">💰</div>
+    <div><div class="pg-title">ROI &amp; Returns Analysis</div>
+    <div class="pg-sub">Return on investment · Risk-adjusted performance · Portfolio optimization signals</div>
+    </div></div>""", unsafe_allow_html=True)
+
+    avg_r = df["ROI_Percentage"].mean()
+    med_r = df["ROI_Percentage"].median()
+    max_r = df["ROI_Percentage"].max()
+    std_r = df["ROI_Percentage"].std()
+    shrp  = avg_r / max(std_r, 0.001)
+
+    c1,c2,c3,c4,c5 = st.columns(5)
+    for col,(ic,vl,lb) in zip([c1,c2,c3,c4,c5],[
+        ("📈",f"{avg_r:.2f}%","Avg ROI"),
+        ("📊",f"{med_r:.2f}%","Median ROI"),
+        ("🚀",f"{max_r:.2f}%","Peak ROI"),
+        ("📉",f"{std_r:.2f}%","Volatility σ"),
+        ("⚖️",f"{shrp:.2f}","Sharpe Ratio"),
+    ]):
+        with col: st.markdown(kpi(ic,vl,lb), unsafe_allow_html=True)
+
+    # Trend + box
+    st.markdown('<div class="sec-title">📈 ROI Trends &amp; Distribution</div>', unsafe_allow_html=True)
+    r1, r2 = st.columns(2)
+    with r1:
+        ry = df.groupby("Year")["ROI_Percentage"].mean().reset_index()
+        f = go.Figure(go.Scatter(
+            x=ry["Year"], y=ry["ROI_Percentage"],
+            mode="lines+markers", name="Avg ROI %",
+            line=dict(color=GOLD, width=3),
+            marker=dict(size=8,color=GOLD,line=dict(color=D_BG,width=2)),
+            fill="tozeroy", fillcolor="rgba(255,193,7,0.08)"))
+        T(f, "📈 Average ROI Trend by Year", 320)
+        st.plotly_chart(f, use_container_width=True)
+    with r2:
+        f2 = px.box(df.dropna(subset=["ROI_Percentage","Sector"]),
+                    x="Sector", y="ROI_Percentage",
+                    color="Sector", color_discrete_sequence=PAL, points=False)
+        T(f2, "📦 ROI Distribution per Sector — Box Plot", 320)
+        st.plotly_chart(f2, use_container_width=True)
+
+    # Histogram + risk error bar
+    st.markdown('<div class="sec-title">🔍 ROI Deep Dive</div>', unsafe_allow_html=True)
+    d1, d2 = st.columns(2)
+    with d1:
+        f3 = px.histogram(df.dropna(subset=["ROI_Percentage"]), x="ROI_Percentage",
+                          color="Sector", nbins=50, barmode="overlay",
+                          color_discrete_sequence=PAL, opacity=0.75)
+        f3.update_layout(bargap=0.04)
+        T(f3, "📊 ROI Distribution Histogram — by Sector", 340)
+        st.plotly_chart(f3, use_container_width=True)
+    with d2:
+        rr = df.groupby("Risk_Category")["ROI_Percentage"].agg(["mean","std"]).reset_index()
+        rr.columns = ["Risk","Mean","Std"]
+        f4 = go.Figure(go.Bar(
+            x=rr["Risk"], y=rr["Mean"],
+            error_y=dict(type="data",array=rr["Std"],visible=True,color=MUT),
+            marker_color=[RISK_C.get(r,"#aaa") for r in rr["Risk"]],
+            text=rr["Mean"].round(2), textposition="outside",
+            textfont=dict(color=TXT),
+        ))
+        T(f4, "⚠️ Avg ROI with σ Error Bars — by ESG Risk Category", 340)
+        st.plotly_chart(f4, use_container_width=True)
+
+    # Scatter + Parallel coords
+    st.markdown('<div class="sec-title">💹 Portfolio Scatter &amp; Parallel Coordinates</div>', unsafe_allow_html=True)
+    sc = df.dropna(subset=["Investment_Amount_USD","ROI_Percentage","ESG_Score"])
+    sc_s = sc.sample(min(5000,len(sc)))
+    f5 = px.scatter(sc_s, x="Investment_Amount_USD", y="ROI_Percentage",
+                    color="Sector", size="ESG_Score", opacity=0.6,
+                    hover_data=["Company_Name","State","Year"],
+                    color_discrete_sequence=PAL, size_max=18)
+    f5.update_xaxes(type="log", title_text="Investment (USD — log scale)")
+    T(f5, "💹 Investment Amount vs ROI  (Bubble = ESG Score  |  Colour = Sector)", 420)
+    st.plotly_chart(f5, use_container_width=True)
+
+    # Region + Quarter
+    st.markdown('<div class="sec-title">📍 ROI by Region &amp; Quarter</div>', unsafe_allow_html=True)
+    rr1, rr2 = st.columns(2)
+    with rr1:
+        reg = df.groupby("Region")["ROI_Percentage"].mean().reset_index().sort_values("ROI_Percentage",ascending=False)
+        f6 = px.bar(reg, x="Region", y="ROI_Percentage",
+                    color="ROI_Percentage", color_continuous_scale="Teal",
+                    text_auto=".1f")
+        f6.update_traces(textposition="outside", textfont_color=TXT)
+        T(f6, "📍 Avg ROI by Region", 300)
+        st.plotly_chart(f6, use_container_width=True)
+    with rr2:
+        rq = df.groupby(["Quarter","Sector"])["ROI_Percentage"].mean().reset_index()
+        rq["ord"] = rq["Quarter"].map({"Q1":0,"Q2":1,"Q3":2,"Q4":3})
+        rq = rq.sort_values("ord")
+        f7 = px.line(rq, x="Quarter", y="ROI_Percentage", color="Sector",
+                     markers=True, line_shape="spline",
+                     color_discrete_sequence=PAL)
+        f7.update_traces(line=dict(width=2.2), marker=dict(size=7))
+        T(f7, "📅 Avg ROI by Quarter — per Sector", 300)
+        st.plotly_chart(f7, use_container_width=True)
+
+    # Parallel coordinates
+    st.markdown('<div class="sec-title">🔗 Parallel Coordinates — Multi-Metric View</div>', unsafe_allow_html=True)
+    pc = df.dropna(subset=["ESG_Score","ROI_Percentage",
+                            "CO2_Reduction_Tons","Investment_Amount_USD"])
+    pc_s = pc.sample(min(3000,len(pc)))
+    pc_s = pc_s.copy()
+    pc_s["Risk_n"] = pc_s["Risk_Category"].map({"Low":0,"Medium":1,"High":2})
+    f8 = px.parallel_coordinates(pc_s,
+        dimensions=["ESG_Score","ROI_Percentage","CO2_Reduction_Tons","Investment_M"],
+        color="Risk_n",
+        color_continuous_scale=[[0,GRN],[0.5,GOLD],[1.0,"#FF5252"]],
+        labels={"ESG_Score":"ESG Score","ROI_Percentage":"ROI %",
+                "CO2_Reduction_Tons":"CO₂ (T)","Investment_M":"Inv ($M)",
+                "Risk_n":"Risk (0=Low)"})
+    f8.update_layout(
+        paper_bgcolor=D_BG, plot_bgcolor=D_BG,
+        font=dict(family="Plus Jakarta Sans,sans-serif", color=TXT, size=11),
+        coloraxis_colorbar=dict(tickfont=dict(color=MUT)),
+        title=dict(text="🔗 Parallel Coordinates: ESG · ROI · CO₂ · Investment",
+                   font=dict(family="Space Grotesk,sans-serif",color=TXT,size=13),x=0.02),
+        margin=dict(l=12,r=12,t=48,b=12), height=380,
+    )
+    st.plotly_chart(f8, use_container_width=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  P6 · SECTOR DEEP DIVE
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.page == "sector":
+    st.markdown("""<div class="pg-header"><div class="pg-icon">🔍</div>
+    <div><div class="pg-title">Sector Deep Dive</div>
+    <div class="pg-sub">Granular per-sector analysis — investment, ESG, carbon &amp; returns</div>
+    </div></div>""", unsafe_allow_html=True)
+
+    avail = sorted(df["Sector"].dropna().unique().tolist())
+    chosen = st.selectbox("🏭 Select Sector to Analyse", avail)
+    sd = df[df["Sector"] == chosen]
+
+    si2 = sd["Investment_Amount_USD"].sum()/1e9
+    sc2 = sd["CO2_Reduction_Tons"].sum()/1e6
+    sr2 = sd["ROI_Percentage"].mean()
+    se2 = sd["ESG_Score"].mean()
+    sp2 = sd["Project_ID"].nunique()
+
+    dr = sector_df[sector_df["Sector"]==chosen]["Description"].values
+    if len(dr):
+        st.info(f"📋 **{chosen}**: {dr[0]}")
+
+    c1,c2,c3,c4,c5 = st.columns(5)
+    for col,(ic,vl,lb) in zip([c1,c2,c3,c4,c5],[
+        ("💵",f"${si2:.2f}B","Investment"),
+        ("🌍",f"{sc2:.2f}M T","CO₂ Reduced"),
+        ("📈",f"{sr2:.2f}%","Avg ROI"),
+        ("🌿",f"{se2:.1f}","Avg ESG Score"),
+        ("🏗️",f"{sp2:,}","Projects"),
+    ]):
+        with col: st.markdown(kpi(ic,vl,lb), unsafe_allow_html=True)
+
+    # Combo + CO2 area
+    st.markdown('<div class="sec-title">📈 Investment, ROI &amp; Carbon Trends</div>', unsafe_allow_html=True)
+    s1, s2 = st.columns(2)
+    with s1:
+        yd = sd.groupby("Year").agg(
+            Investment=("Investment_Amount_USD","sum"),
+            ROI=("ROI_Percentage","mean"),
+            CO2=("CO2_Reduction_Tons","sum")).reset_index()
+        fc = make_subplots(specs=[[{"secondary_y": True}]])
+        fc.add_trace(go.Bar(x=yd["Year"], y=yd["Investment"],
+                            name="Investment", marker_color=GRN, opacity=0.8),
+                     secondary_y=False)
+        fc.add_trace(go.Scatter(x=yd["Year"], y=yd["ROI"],
+                                name="ROI %", mode="lines+markers",
+                                line=dict(color=GOLD,width=2.8),
+                                marker=dict(size=8,color=GOLD,
+                                            line=dict(color=D_BG,width=2))),
+                     secondary_y=True)
+        combo_layout(fc, f"📈 {chosen}: Investment &amp; ROI — Dual Axis", 340)
+        fc.update_yaxes(gridcolor="rgba(0,0,0,0)",
+                        tickfont=dict(color=GOLD), secondary_y=True)
+        st.plotly_chart(fc, use_container_width=True)
+    with s2:
+        cy2 = sd.groupby("Year")["CO2_Reduction_Tons"].sum().reset_index()
+        f2 = go.Figure(go.Scatter(
+            x=cy2["Year"], y=cy2["CO2_Reduction_Tons"],
+            mode="lines+markers", name="CO₂ Reduced",
+            line=dict(color=GRN2,width=3),
+            marker=dict(size=8,color=GRN,line=dict(color=D_BG,width=2)),
+            fill="tozeroy", fillcolor="rgba(0,255,179,0.08)"))
+        T(f2, f"🌍 {chosen}: CO₂ Reduction Trend (Tonnes)", 340)
+        st.plotly_chart(f2, use_container_width=True)
+
+    # State + Risk
+    st.markdown('<div class="sec-title">🗺️ Geographic &amp; Risk Breakdown</div>', unsafe_allow_html=True)
+    g1, g2 = st.columns(2)
+    with g1:
+        std_ = sd.groupby("State")["Investment_Amount_USD"].sum().reset_index().sort_values("Investment_Amount_USD",ascending=False).head(12)
+        f3 = px.bar(std_, y="State", x="Investment_Amount_USD", orientation="h",
+                    color="Investment_Amount_USD", color_continuous_scale="Greens",
+                    text_auto=".2s")
+        f3.update_traces(textposition="outside", textfont_color=TXT)
+        T(f3, f"🗺️ {chosen}: Top States by Investment", 380)
+        st.plotly_chart(f3, use_container_width=True)
+    with g2:
+        rk = sd["Risk_Category"].value_counts().reset_index()
+        rk.columns = ["Risk","Count"]
+        f4 = px.pie(rk, values="Count", names="Risk", hole=0.58,
+                    color="Risk", color_discrete_map=RISK_C)
+        f4.update_traces(textinfo="label+percent",
+                         marker=dict(line=dict(color=D_BG,width=2)))
+        T(f4, f"⚠️ {chosen}: ESG Risk Distribution", 380)
+        st.plotly_chart(f4, use_container_width=True)
+
+    # Radar
+    st.markdown('<div class="sec-title">🕸️ All-Sector Comparison Radar</div>', unsafe_allow_html=True)
+    rad = df.groupby("Sector").agg(
+        ROI=("ROI_Percentage","mean"), ESG=("ESG_Score","mean"),
+        CO2=("CO2_Reduction_Tons","mean"), Inv=("Investment_Amount_USD","mean"),
+    ).reset_index()
+    for c_ in ["ROI","ESG","CO2","Inv"]:
+        mn,mx = rad[c_].min(), rad[c_].max()
+        rad[c_+"_n"] = ((rad[c_]-mn)/(mx-mn+1e-9))*100
+
+    f5 = go.Figure()
+    cats = ["ROI","ESG Score","CO₂ Impact","Investment","ROI"]
+    for i,row in rad.iterrows():
+        is_sel = row["Sector"]==chosen
+        c_r = GRN if is_sel else PAL[i % len(PAL)]
+        f5.add_trace(go.Scatterpolar(
+            r=[row["ROI_n"],row["ESG_n"],row["CO2_n"],row["Inv_n"],row["ROI_n"]],
+            theta=cats, name=row["Sector"], mode="lines+markers",
+            line=dict(color=c_r, width=3 if is_sel else 1.5),
+            marker=dict(size=7 if is_sel else 4, color=c_r),
+            opacity=1.0 if is_sel else 0.55,
+        ))
+    f5.update_layout(
+        polar=dict(
+            bgcolor=D_BG2,
+            radialaxis=dict(visible=True, gridcolor=GRID,
+                            tickfont=dict(color=MUT,size=9), color=MUT, range=[0,110]),
+            angularaxis=dict(gridcolor=GRID,
+                             tickfont=dict(color=TXT,size=11), color=MUT),
+        ),
+        paper_bgcolor=D_BG, font=dict(color=TXT,family="Plus Jakarta Sans,sans-serif"),
+        legend=dict(bgcolor="rgba(0,0,0,0)",font=dict(color=MUT,size=11)),
+        title=dict(text=f"🕸️ Sector Radar — highlighted: {chosen}",
+                   font=dict(family="Space Grotesk,sans-serif",color=TXT,size=13),x=0.02),
+        margin=dict(l=30,r=30,t=50,b=30), height=460,
+    )
+    st.plotly_chart(f5, use_container_width=True)
+
+    # Waterfall
+    st.markdown('<div class="sec-title">🌊 Investment Waterfall — Year-over-Year Change</div>', unsafe_allow_html=True)
+    wf = sd.groupby("Year")["Investment_Amount_USD"].sum().reset_index().sort_values("Year")
+    wf["delta"] = wf["Investment_Amount_USD"].diff().fillna(wf["Investment_Amount_USD"])
+    f6 = go.Figure(go.Waterfall(
+        x=wf["Year"].astype(str).tolist(),
+        y=wf["delta"].tolist(),
+        measure=["absolute"]+["relative"]*(len(wf)-1),
+        connector=dict(line=dict(color=MUT,width=1.5)),
+        increasing=dict(marker=dict(color=GRN,line=dict(color=GRN2,width=1))),
+        decreasing=dict(marker=dict(color="#FF5252",line=dict(color="#FF8A80",width=1))),
+        totals=dict(marker=dict(color=GOLD,line=dict(color="#FFE082",width=1))),
+        textposition="outside",
+        textfont=dict(color=TXT,size=11),
+        text=[f"${v/1e6:.1f}M" for v in wf["delta"]],
+    ))
+    T(f6, f"🌊 {chosen}: Investment Waterfall — YoY Change", 360)
+    st.plotly_chart(f6, use_container_width=True)
+
+
+# ─── FOOTER ───────────────────────────────────────────────────────────────────
 st.markdown("""
-<div style="text-align:center; padding:24px 0 8px; color:#37474F; font-size:0.78rem;">
-    🌿 HDFC Bank Green Finance & ESG Investment Tracker &nbsp;|&nbsp; Built with Streamlit & Plotly &nbsp;|&nbsp; Data refreshes on filter change
-</div>
-""", unsafe_allow_html=True)
+<div style="text-align:center;padding:26px 0 4px;color:#1E3050;font-size:.74rem;
+            border-top:1px solid rgba(32,196,138,.07);margin-top:26px;">
+  🌿 HDFC Bank Green Finance &amp; ESG Investment Tracker &nbsp;·&nbsp;
+  Streamlit + Plotly &nbsp;·&nbsp; v3.0
+</div>""", unsafe_allow_html=True)
